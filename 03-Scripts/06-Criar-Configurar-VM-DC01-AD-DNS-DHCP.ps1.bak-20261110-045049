@@ -1,0 +1,612 @@
+﻿# SmartFactory - Etapa 04 - Criar e configurar VM-DC01, AD DS, DNS e DHCP
+# Windows PowerShell 5.1 - executar no HOST Windows 11 Pro como Administrador
+# Acoes: Preparar | CriarVM | ConfigurarBase | PromoverAD | ConfigurarServicos | Validar
+# Requer instalacao manual inicial do Windows Server 2025 Standard (Server Core).
+# Nao grava credenciais ou a senha DSRM em arquivos.
+[CmdletBinding()]
+param(
+    [ValidateSet('Preparar','CriarVM','ConfigurarBase','PromoverAD','ConfigurarServicos','Validar')]
+    [string]$Acao = 'Preparar',
+    [string]$IsoPath = ''
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$Base = 'D:\FIAP\WINDOWS\SmartFactory-GS'
+$VmName = 'VM-DC01'
+$VmFolder = Join-Path $Base '02-VMs\VM-DC01'
+$VhdPath = Join-Path $VmFolder 'VM-DC01-OS.vhdx'
+$ScriptsDir = Join-Path $Base '03-Scripts'
+$IsosDir = Join-Path $Base '01-ISOs'
+$DocsDir = Join-Path $Base '00-Documentacao'
+$EvidenceDir = Join-Path $Base '06-Evidencias\04-DC01-AD-DNS-DHCP'
+$RoteirosDir = Join-Path $Base '07-Video\Roteiros'
+$LogsDir = Join-Path $Base '09-Logs-Testes'
+$LogPath = Join-Path $LogsDir '06-DC01-AD-DNS-DHCP-Resultado.txt'
+$ReportPath = Join-Path $DocsDir '04-DC01-AD-DNS-DHCP.md'
+$RoteiroPath = Join-Path $RoteirosDir 'Roteiro_Video_Etapa_5.txt'
+$ChecklistPath = Join-Path $DocsDir '04-DC01-Checklist-Validacao.txt'
+
+function EscreverLog {
+    param([Parameter(Mandatory)][string]$Texto)
+    $linha = ('{0} | {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'),$Texto)
+    Add-Content -LiteralPath $LogPath -Value $linha -Encoding UTF8
+    Write-Host $linha
+}
+function AssegurarPastas {
+    foreach ($dir in @($VmFolder,$ScriptsDir,$IsosDir,$DocsDir,$EvidenceDir,$RoteirosDir,$LogsDir)) {
+        New-Item -Path $dir -ItemType Directory -Force | Out-Null
+    }
+}
+function VerificarAdmin {
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $p = [Security.Principal.WindowsPrincipal]::new($id)
+    if (-not $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        throw 'Abra o Windows PowerShell como Administrador.'
+    }
+}
+function VerificarRede {
+    Import-Module Hyper-V -ErrorAction Stop
+    $sw = Get-VMSwitch -Name 'SF-LAN' -ErrorAction SilentlyContinue
+    if (-not $sw -or $sw.SwitchType -ne 'Internal') {
+        throw 'Switch interno SF-LAN ausente ou de tipo incorreto.'
+    }
+    $fw = Get-VM -Name 'VM-FW01' -ErrorAction SilentlyContinue
+    if (-not $fw -or $fw.State -ne 'Running') {
+        throw 'Ligue a VM-FW01 (pfSense) antes de continuar.'
+    }
+    $trunk = Get-VMNetworkAdapterVlan -VMName 'VM-FW01' -VMNetworkAdapterName 'LAN'
+    if ($trunk.OperationMode -ne 'Trunk' -or $trunk.NativeVlanId -ne 99) {
+        throw 'Trunk da VM-FW01 nao esta na VLAN nativa 99. Revise a Etapa 03.'
+    }
+    $conexao = Test-NetConnection -ComputerName '10.20.10.1' -Port 443 -WarningAction SilentlyContinue
+    if (-not $conexao.TcpTestSucceeded) {
+        throw 'HTTPS 10.20.10.1:443 inacessivel. Revise a Etapa 03.'
+    }
+}
+function AbrirSessaoConvidado {
+    if ((Get-VM -Name $VmName -ErrorAction Stop).State -ne 'Running') {
+        throw 'VM-DC01 desligada. Inicie-a e confirme que o Windows terminou o boot.'
+    }
+    Write-Host ''
+    Write-Host 'Informe a credencial DO WINDOWS SERVER (nao a do Windows hospedeiro).' -ForegroundColor Cyan
+    Write-Host 'Antes da promocao: Administrador local. Depois: SMARTFACTORY\Administrator.'
+    $cred = Get-Credential -Message 'Login administrativo do Windows Server VM-DC01'
+    return (New-PSSession -VMName $VmName -Credential $cred -ErrorAction Stop)
+}
+function RegistrarSaida {
+    param([object[]]$Saida)
+    foreach ($item in @($Saida)) {
+        if ($null -eq $item) { continue }
+        $linhas = (($item | Out-String).Trim() -split "`r?`n")
+        foreach ($linha in $linhas) {
+            if ($linha.Trim()) { EscreverLog ('GUEST: ' + $linha.Trim()) }
+        }
+    }
+}
+
+VerificarAdmin
+if (-not (Test-Path -LiteralPath $Base -PathType Container)) {
+    throw "Pasta base nao existe: $Base"
+}
+AssegurarPastas
+EscreverLog ("ACAO INICIADA: {0}" -f $Acao)
+
+try {
+    switch ($Acao) {
+        'Preparar' {
+            VerificarRede
+            $os = Get-CimInstance Win32_OperatingSystem
+            $livreGB = [math]::Round(($os.FreePhysicalMemory * 1KB)/1GB,2)
+            $ramGB = [math]::Round(($os.TotalVisibleMemorySize * 1KB)/1GB,2)
+            $disco = Get-PSDrive -Name D -ErrorAction Stop
+            $discoLivreGB = [math]::Round($disco.Free/1GB,2)
+            EscreverLog ("RAM host total: {0} GB | livre no momento: {1} GB" -f $ramGB,$livreGB)
+            EscreverLog ("Disco D: livre: {0} GB" -f $discoLivreGB)
+            if ($discoLivreGB -lt 65) {
+                throw 'D: tem menos de 65 GB livres. Libere espaco antes de criar o VHDX de 60 GB.'
+            }
+            if ($livreGB -lt 5) {
+                Write-Warning 'Menos de 5 GB de RAM livres no host. Feche programas/VMs nao essenciais.'
+            }
+            $requisitos = @'
+# SmartFactory - Etapa 04 - VM-DC01 / AD DS / DNS / DHCP
+
+## Especificacao (CP-02 + CP-03)
+- VM: VM-DC01; nome do Windows: VM-DC01.
+- Windows Server 2025 Standard Server Core; Geracao 2; Secure Boot.
+- 2 vCPU, RAM ESTATICA de 4 GB; VHDX dinamico de 60 GB no D:.
+- Switch SF-LAN, Access VLAN 20, IP 10.20.20.11/24.
+- Gateway 10.20.20.1; DNS preferencial 10.20.20.11.
+- Dominio smartfactory.corp; NetBIOS SMARTFACTORY; niveis 2025.
+- AD DS, DNS integrado ao AD, GC, FSMO, horario corporativo.
+- Zona direta smartfactory.corp e reversa 20.10.in-addr.arpa /16.
+- DNS Forwarders 1.1.1.1 e 9.9.9.9; atualizacao dinamica segura.
+- OUs departamentais, Infraestrutura e Piloto_GPO; grupos AGDLP.
+- Oito escopos DHCP: 30/40/50/60/70/80/90/999.
+- Pools efetivos .21-.254 (corporativos), .10-.254 (visitantes).
+- Concessoes 8 dias (corporativos), 8 horas (visitantes).
+- Visitantes usam DNS publico, sem sufixo AD.
+
+## Adequacoes do laboratorio
+- DC02 ausente: sem replicacao de AD/DNS e sem DHCP Failover.
+- DHCP instalado TEMPORARIAMENTE no DC01, IP 10.20.20.11.
+- Sem SET/HA fisico real. O host permanece Windows 11 Pro, RAM 16 GB.
+- GPOs, Central Store, LAPS e hardening aprofundado ficam na etapa de seguranca.
+- Contas reais ainda nao foram fornecidas: nao criar usuarios ficticios.
+- Teste DHCP Relay real exige cliente em outra VLAN, previsto adiante.
+
+## Evidencias
+- ISO selecionada e tela inicial do instalador Server Core.
+- VM Gen 2, 2 vCPU, 4 GB RAM, VHDX 60GB, VLAN Access 20.
+- SConfig do Windows Server Core; hostname/IP configurados.
+- Promocao AD DS e reinicio do controlador de dominio.
+- Get-ADDomain/Get-ADForest e consultas DNS SRV.
+- Zonas DNS, OUs, grupos AGDLP e oito escopos DHCP.
+- Resultado do script -Acao Validar e relatorio.
+
+## Estado
+NAO VALIDADO. Confirmar resultado da acao Validar.
+'@
+            if (-not (Test-Path -LiteralPath $ReportPath)) {
+                Set-Content -LiteralPath $ReportPath -Value $requisitos -Encoding UTF8
+            }
+            $roteiro = @'
+Nesta etapa, instalamos o primeiro Windows Server 2025 da SmartFactory, utilizando a edição Standard em modo Server Core.
+
+Criamos a VM-DC01 no Hyper-V, com duas CPUs virtuais, quatro gigabytes de memória, disco VHDX de sessenta gigabytes e conexão à VLAN 20, reservada aos servidores corporativos.
+
+Depois da instalação, automatizamos o endereçamento IP e promovemos o servidor a controlador de domínio da floresta smartfactory.corp.
+
+Também configuramos o DNS integrado ao Active Directory, suas zonas direta e reversa, os encaminhadores externos, as unidades organizacionais e os grupos de segurança no modelo AGDLP.
+
+Como o laboratório utiliza apenas um controlador de domínio, implementamos no DC01 os oito escopos DHCP previstos no projeto. A arquitetura original com redundância e DHCP Failover continua documentada, mas não será apresentada como implementada.
+
+Ao final, validamos os serviços de domínio, DNS e DHCP com comandos PowerShell e registramos as evidências. Os testes de concessão de IP por clientes e a aplicação de GPO e LAPS serão realizados nas etapas seguintes.
+'@
+            if (-not (Test-Path -LiteralPath $RoteiroPath)) {
+                Set-Content -LiteralPath $RoteiroPath -Value $roteiro -Encoding UTF8
+            }
+            if (-not (Test-Path -LiteralPath $ChecklistPath)) {
+                @'
+[ ] Preflight aprovado e ISO Server 2025 confirmada.
+[ ] VM-DC01 Gen2/2vCPU/4GB estaticos/VHDX 60GB.
+[ ] Secure Boot ligado; NIC Access VLAN20; DHCPGuard Off.
+[ ] Instalacao Windows Server 2025 Standard CORE.
+[ ] Senha admin local definida; boot concluido.
+[ ] Nome VM-DC01; 10.20.20.11/24, GW 10.20.20.1, DNS 10.20.20.11.
+[ ] Floresta smartfactory.corp, NetBIOS SMARTFACTORY, nivel 2025.
+[ ] GC/FSMO e registros SRV verificados.
+[ ] Zona DNS direta e reversa /16 e forwarders.
+[ ] OUs: SmartFactory, Infraestrutura, Piloto_GPO e DCs na OU nativa.
+[ ] 7 grupos GG e 14 grupos DL criados e vinculados (sem ACL NTFS ainda).
+[ ] DHCP autorizado no AD; 8 escopos; exclusoes/lease/opcoes.
+[ ] Backup inicial do DC planejado na futura etapa de recuperacao.
+[ ] Teste de DHCP Relay real pendente de CLI-ADM01.
+[ ] Registro do Windows Server/licenca de laboratorio documentado.
+[ ] Evidencias e video 05 salvos.
+'@ | Set-Content -LiteralPath $ChecklistPath -Encoding UTF8
+            }
+            EscreverLog 'PREPARACAO CONCLUIDA: documentacao, roteiro e checklist criados.'
+            EscreverLog ("RELATORIO: {0}" -f $ReportPath)
+            EscreverLog ("ROTEIRO: {0}" -f $RoteiroPath)
+            EscreverLog ("CHECKLIST: {0}" -f $ChecklistPath)
+        }
+        'CriarVM' {
+            VerificarRede
+            if (Get-VM -Name $VmName -ErrorAction SilentlyContinue) {
+                throw 'VM-DC01 ja existe. Nao vou sobrescrever nem duplicar a VM.'
+            }
+            if (Test-Path -LiteralPath $VhdPath) {
+                throw 'O VHDX de destino ja existe. Nao vou sobrescrever o disco.'
+            }
+            $livre = (Get-PSDrive D).Free
+            if ($livre -lt 65GB) {
+                throw 'Espaco insuficiente em D:. Exigidos 65 GB livres de margem.'
+            }
+            if (-not $IsoPath) {
+                $isos = @(Get-ChildItem -LiteralPath $IsosDir -Filter '*.iso' -File -Recurse |
+                    Where-Object { $_.Name -match '(?i)(server.?2025|windows.?server|ws2025|winserver)' })
+                if ($isos.Count -ne 1) {
+                    Write-Host 'ISOs candidatas:'
+                    $isos | ForEach-Object { Write-Host $_.FullName }
+                    throw 'Use -IsoPath "CAMINHO_COMPLETO_DA_ISO_WINDOWS_SERVER_2025.iso".'
+                }
+                $IsoPath = $isos[0].FullName
+            }
+            if (-not (Test-Path -LiteralPath $IsoPath -PathType Leaf)) {
+                throw "ISO nao encontrada: $IsoPath"
+            }
+            if ([IO.Path]::GetExtension($IsoPath) -ne '.iso') {
+                throw 'Arquivo de instalacao precisa ser ISO, nao ZIP/GZ.'
+            }
+            EscreverLog ("ISO escolhida: {0}" -f $IsoPath)
+            New-VM -Name $VmName -Generation 2 -MemoryStartupBytes 4GB `
+                -NewVHDPath $VhdPath -NewVHDSizeBytes 60GB -SwitchName 'SF-LAN' `
+                -Path (Join-Path $Base '02-VMs') | Out-Null
+            Set-VMProcessor -VMName $VmName -Count 2
+            Set-VMMemory -VMName $VmName -DynamicMemoryEnabled $false -StartupBytes 4GB
+            Set-VMFirmware -VMName $VmName -EnableSecureBoot On -SecureBootTemplate 'MicrosoftWindows'
+            Set-VM -Name $VmName -CheckpointType Disabled -AutomaticCheckpointsEnabled $false `
+                -AutomaticStopAction ShutDown -AutomaticStartAction Nothing
+            $nic = @(Get-VMNetworkAdapter -VMName $VmName)
+            if ($nic.Count -ne 1) { throw 'Quantidade inesperada de NICs na VM recem-criada.' }
+            Rename-VMNetworkAdapter -VMName $VmName -Name $nic[0].Name -NewName 'SERVIDORES'
+            Set-VMNetworkAdapterVlan -VMName $VmName -VMNetworkAdapterName 'SERVIDORES' -Access -VlanId 20
+            # DC01 e o servidor DHCP autorizado: DHCPGuard DEVE ficar Off.
+            Set-VMNetworkAdapter -VMName $VmName -Name 'SERVIDORES' -DhcpGuard Off -RouterGuard On
+            $dvd = Get-VMDvdDrive -VMName $VmName -ErrorAction SilentlyContinue
+            if ($dvd) {
+                Set-VMDvdDrive -VMName $VmName -Path $IsoPath
+            } else {
+                Add-VMDvdDrive -VMName $VmName -Path $IsoPath | Out-Null
+            }
+            Set-VMFirmware -VMName $VmName -FirstBootDevice (Get-VMDvdDrive -VMName $VmName | Select-Object -First 1)
+            EscreverLog 'VM-DC01 CRIADA: Geracao 2, CPU 2, RAM 4GB estatica, 60GB VHDX, VLAN20.'
+            EscreverLog 'Secure Boot On; DHCPGuard Off (servidor DHCP); RouterGuard On.'
+            EscreverLog 'Inicie a VM pelo Hyper-V e instale Windows Server 2025 Standard (SEM Desktop Experience).'
+            Write-Host ("Caminho do disco: {0}" -f $VhdPath) -ForegroundColor Green
+        }
+        'ConfigurarBase' {
+            VerificarRede
+            $session = AbrirSessaoConvidado
+            try {
+                $out = Invoke-Command -Session $session -ErrorAction Stop -ScriptBlock {
+                    $ErrorActionPreference = 'Stop'
+                    $os = Get-CimInstance Win32_OperatingSystem
+                    if ($os.Caption -notmatch '2025') { throw "Windows Server 2025 nao identificado: $($os.Caption)" }
+                    $inst = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion').InstallationType
+                    if ($inst -notmatch 'Core') { throw "Instalacao nao e Server Core: $inst" }
+                    $nic = @(Get-NetAdapter | Where-Object Status -eq 'Up')
+                    if ($nic.Count -ne 1) { throw 'Ha zero ou mais de uma NIC ativa. Confirme a configuracao.' }
+                    $i = $nic[0].ifIndex
+                    $ips = @(Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $i -ErrorAction SilentlyContinue |
+                        Where-Object { $_.IPAddress -notlike '169.254.*' })
+                    $outros = @($ips | Where-Object IPAddress -ne '10.20.20.11')
+                    if ($outros.Count -gt 0) { throw 'Existe IPv4 diferente do planejado na NIC. Nao sobrescrever automaticamente.' }
+                    if (-not ($ips | Where-Object IPAddress -eq '10.20.20.11')) {
+                        New-NetIPAddress -InterfaceIndex $i -IPAddress '10.20.20.11' `
+                            -PrefixLength 24 -DefaultGateway '10.20.20.1' -ErrorAction Stop | Out-Null
+                    }
+                    $rt = Get-NetRoute -InterfaceIndex $i -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue
+                    if (-not ($rt | Where-Object NextHop -eq '10.20.20.1')) {
+                        throw 'Gateway 10.20.20.1 ausente; nao vou prosseguir.'
+                    }
+                    Set-DnsClientServerAddress -InterfaceIndex $i -ServerAddresses '10.20.20.11'
+                    Set-TimeZone -Id 'E. South America Standard Time'
+                    $renomear = $env:COMPUTERNAME -ne 'VM-DC01'
+                    if ($renomear) {
+                        Rename-Computer -NewName 'VM-DC01' -Force -ErrorAction Stop
+                    }
+                    [pscustomobject]@{
+                        OS=$os.Caption; InstallType=$inst; Interface=$nic[0].Name
+                        IPv4='10.20.20.11/24'; Gateway='10.20.20.1'; DNS='10.20.20.11'
+                        RenamePending=$renomear
+                    }
+                    if ($renomear) {
+                        & shutdown.exe /r /t 15 /c 'SmartFactory: renomear servidor para VM-DC01'
+                    }
+                }
+                RegistrarSaida @($out)
+                EscreverLog 'BASE CONFIGURADA. Se houve renomeacao, o Windows reiniciara automaticamente.'
+            } finally {
+                if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
+            }
+        }
+        'PromoverAD' {
+            VerificarRede
+            $session = AbrirSessaoConvidado
+            try {
+                $ver = Invoke-Command -Session $session -ScriptBlock {
+                    $os = Get-CimInstance Win32_OperatingSystem
+                    $cs = Get-CimInstance Win32_ComputerSystem
+                    [pscustomobject]@{ OS=$os.Caption; Nome=$env:COMPUTERNAME; DomainRole=$cs.DomainRole;
+                        IpOk=([bool](Get-NetIPAddress -AddressFamily IPv4 -IPAddress '10.20.20.11' -ErrorAction SilentlyContinue)) }
+                }
+                if ($ver.OS -notmatch '2025' -or $ver.Nome -ne 'VM-DC01' -or -not $ver.IpOk) {
+                    throw 'SO/nome/IP nao correspondem. Execute ConfigurarBase e confirme o reinicio.'
+                }
+                if ($ver.DomainRole -ge 4) { throw 'Servidor ja e controlador de dominio. Nao repetir promocao.' }
+                Write-Host ''
+                Write-Host 'Defina uma senha DSRM forte e GUARDE-A FORA do relatorio/video.' -ForegroundColor Yellow
+                $dsrm = Read-Host 'Senha DSRM' -AsSecureString
+                $out = Invoke-Command -Session $session -ArgumentList $dsrm -ErrorAction Stop -ScriptBlock {
+                    param([securestring]$SafeModePassword)
+                    $ErrorActionPreference = 'Stop'
+                    $f = Install-WindowsFeature -Name AD-Domain-Services,DNS -IncludeManagementTools
+                    if (-not $f.Success) { throw 'Falha ao instalar AD DS/DNS.' }
+                    Import-Module ADDSDeployment -ErrorAction Stop
+                    Install-ADDSForest -DomainName 'smartfactory.corp' `
+                        -DomainNetbiosName 'SMARTFACTORY' `
+                        -ForestMode Win2025 -DomainMode Win2025 `
+                        -InstallDNS -SafeModeAdministratorPassword $SafeModePassword `
+                        -NoRebootOnCompletion:$true -Force -Confirm:$false -ErrorAction Stop | Out-Null
+                    'PROMOCAO AD DS EXECUTADA. Reinicio do Windows agendado.'
+                    & shutdown.exe /r /t 15 /c 'SmartFactory: concluir promocao AD DS'
+                }
+                RegistrarSaida @($out)
+                EscreverLog 'PROMOCAO ENVIADA. Aguarde reinicio e faca login como SMARTFACTORY\Administrator.'
+            } finally {
+                if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
+            }
+        }
+        'ConfigurarServicos' {
+            VerificarRede
+            $session = AbrirSessaoConvidado
+            try {
+                $out = Invoke-Command -Session $session -ErrorAction Stop -ScriptBlock {
+                    $ErrorActionPreference = 'Stop'
+                    if ((Get-CimInstance Win32_ComputerSystem).DomainRole -ne 5) {
+                        throw 'VM-DC01 ainda nao e DC principal. Aguarde promocao e reinicio.'
+                    }
+                    Import-Module ActiveDirectory,DnsServer -ErrorAction Stop
+                    $dom = Get-ADDomain
+                    if ($dom.DNSRoot -ne 'smartfactory.corp' -or $dom.NetBIOSName -ne 'SMARTFACTORY') {
+                        throw 'Dominio/NetBIOS diferente do projeto. Nao modificar.'
+                    }
+                    $z = Get-DnsServerZone -Name '20.10.in-addr.arpa' -ErrorAction SilentlyContinue
+                    if (-not $z) {
+                        Add-DnsServerPrimaryZone -NetworkID '10.20.0.0/16' -ReplicationScope Forest `
+                            -DynamicUpdate Secure -ErrorAction Stop | Out-Null
+                    }
+                    foreach ($zn in @('smartfactory.corp','20.10.in-addr.arpa')) {
+                        $dz = Get-DnsServerZone -Name $zn -ErrorAction Stop
+                        if (-not $dz.IsDsIntegrated) { throw "Zona $zn nao integrada ao AD." }
+                        Set-DnsServerPrimaryZone -Name $zn -DynamicUpdate Secure -ErrorAction Stop
+                    }
+                    Set-DnsServerForwarder -IPAddress @('1.1.1.1','9.9.9.9') -ErrorAction Stop
+                    $regA = Get-DnsServerResourceRecord -ZoneName 'smartfactory.corp' `
+                        -Name 'vm-dc01' -RRType A -ErrorAction SilentlyContinue
+                    if (-not $regA) {
+                        Add-DnsServerResourceRecordA -ZoneName 'smartfactory.corp' `
+                            -Name 'vm-dc01' -IPv4Address '10.20.20.11' -ErrorAction Stop
+                    }
+                    $regPTR = Get-DnsServerResourceRecord -ZoneName '20.10.in-addr.arpa' `
+                        -Name '11.20' -RRType PTR -ErrorAction SilentlyContinue
+                    if (-not $regPTR) {
+                        Add-DnsServerResourceRecordPtr -ZoneName '20.10.in-addr.arpa' `
+                            -Name '11.20' -PtrDomainName 'vm-dc01.smartfactory.corp' -ErrorAction Stop
+                    }
+                    $baseDN = 'DC=smartfactory,DC=corp'
+                    function AssegurarOU([string]$Nome,[string]$Pai) {
+                        $dn = "OU=$Nome,$Pai"
+                        if (-not (Get-ADOrganizationalUnit -Identity $dn -ErrorAction SilentlyContinue)) {
+                            New-ADOrganizationalUnit -Name $Nome -Path $Pai `
+                                -ProtectedFromAccidentalDeletion $true -ErrorAction Stop | Out-Null
+                        }
+                        return $dn
+                    }
+                    $smart = AssegurarOU 'SmartFactory' $baseDN
+                    $infra = AssegurarOU 'Infraestrutura' $baseDN
+                    [void](AssegurarOU 'Piloto_GPO' $baseDN)
+                    $membros = AssegurarOU 'Servidores_Membros' $infra
+                    $dmz = AssegurarOU 'Servidores_DMZ' $infra
+                    [void](AssegurarOU 'File_Servers' $membros)
+                    [void](AssegurarOU 'Backup_Servers' $membros)
+                    [void](AssegurarOU 'Web_Servers' $dmz)
+                    $departamentos = @('Administracao','Recursos_Humanos','Financeiro',
+                        'Engenharia','Producao','Logistica','TI')
+                    $apelidos = @{
+                        'Administracao'='Administracao'; 'Recursos_Humanos'='RH';
+                        'Financeiro'='Financeiro'; 'Engenharia'='Engenharia';
+                        'Producao'='Producao'; 'Logistica'='Logistica'; 'TI'='TI'
+                    }
+                    $novosGrupos = 0
+                    foreach ($dep in $departamentos) {
+                        $ouDep = AssegurarOU $dep $smart
+                        [void](AssegurarOU 'Usuarios' $ouDep)
+                        [void](AssegurarOU 'Computadores' $ouDep)
+                        $ouGrupos = AssegurarOU 'Grupos' $ouDep
+                        if ($dep -eq 'TI') { [void](AssegurarOU 'Contas_Servico' $ouDep) }
+                        $gg = "GG_$dep"
+                        if (-not (Get-ADGroup -Identity $gg -ErrorAction SilentlyContinue)) {
+                            New-ADGroup -Name $gg -SamAccountName $gg -GroupScope Global `
+                                -GroupCategory Security -Path $ouGrupos -ErrorAction Stop
+                            $novosGrupos++
+                        }
+                        $suf = $apelidos[$dep]
+                        foreach ($nivel in @('Modificar','Leitura')) {
+                            $dl = "DL_FS_${suf}_$nivel"
+                            if (-not (Get-ADGroup -Identity $dl -ErrorAction SilentlyContinue)) {
+                                New-ADGroup -Name $dl -SamAccountName $dl -GroupScope DomainLocal `
+                                    -GroupCategory Security -Path $ouGrupos -ErrorAction Stop
+                                $novosGrupos++
+                            }
+                        }
+                        $dlModificar = "DL_FS_${suf}_Modificar"
+                        $nomes = @(Get-ADGroupMember -Identity $dlModificar -ErrorAction Stop |
+                            Select-Object -ExpandProperty SamAccountName)
+                        if ($gg -notin $nomes) {
+                            Add-ADGroupMember -Identity $dlModificar -Members $gg -ErrorAction Stop
+                        }
+                    }
+                    Set-ADDefaultDomainPasswordPolicy -Identity 'smartfactory.corp' `
+                        -MinPasswordLength 14 -ComplexityEnabled $true -PasswordHistoryCount 24 `
+                        -MaxPasswordAge ([TimeSpan]::Zero) `
+                        -LockoutThreshold 10 `
+                        -LockoutDuration ([TimeSpan]::FromMinutes(15)) `
+                        -LockoutObservationWindow ([TimeSpan]::FromMinutes(15)) `
+                        -ErrorAction Stop
+                    $dhcp = Install-WindowsFeature -Name DHCP -IncludeManagementTools
+                    if (-not $dhcp.Success) { throw 'Falha ao instalar role DHCP.' }
+                    Import-Module DhcpServer -ErrorAction Stop
+                    & netsh.exe dhcp add securitygroups | Out-Null
+                    Restart-Service -Name DHCPServer -ErrorAction Stop
+                    $autorizacoes = @(Get-DhcpServerInDC -ErrorAction Stop)
+                    if (-not ($autorizacoes | Where-Object { "$($_.IPAddress)" -eq '10.20.20.11' })) {
+                        Add-DhcpServerInDC -DnsName 'vm-dc01.smartfactory.corp' `
+                            -IPAddress '10.20.20.11' -ErrorAction Stop
+                    }
+                    $escopos = @(
+                        @{Id=30;Nome='Escopo_VLAN30_ADM'},
+                        @{Id=40;Nome='Escopo_VLAN40_RH'},
+                        @{Id=50;Nome='Escopo_VLAN50_FIN'},
+                        @{Id=60;Nome='Escopo_VLAN60_ENG'},
+                        @{Id=70;Nome='Escopo_VLAN70_PROD'},
+                        @{Id=80;Nome='Escopo_VLAN80_LOG'},
+                        @{Id=90;Nome='Escopo_VLAN90_TI'},
+                        @{Id=200;Nome='Escopo_VLAN999_VISITANTES'}
+                    )
+                    foreach ($esc in $escopos) {
+                        $n = $esc.Id
+                        $scopeId = "10.20.$n.0"
+                        $inicio = "10.20.$n.1"
+                        $fim = "10.20.$n.254"
+                        $gw = "10.20.$n.1"
+                        $guest = $n -eq 200
+                        $lease = if ($guest) {[TimeSpan]::FromHours(8)} else {[TimeSpan]::FromDays(8)}
+                        if (-not (Get-DhcpServerv4Scope -ScopeId $scopeId -ErrorAction SilentlyContinue)) {
+                            Add-DhcpServerv4Scope -Name $esc.Nome -StartRange $inicio `
+                                -EndRange $fim -SubnetMask '255.255.255.0' -State Active `
+                                -LeaseDuration $lease -ErrorAction Stop
+                        }
+                        Set-DhcpServerv4Scope -ScopeId $scopeId -Name $esc.Nome `
+                            -LeaseDuration $lease -State Active -ErrorAction Stop
+                        $finalExcl = if ($guest) {9} else {20}
+                        $exclusoes = @(Get-DhcpServerv4ExclusionRange -ScopeId $scopeId `
+                            -ErrorAction SilentlyContinue)
+                        $exclEnd = "10.20.$n.$finalExcl"
+                        if (-not ($exclusoes | Where-Object { "$($_.StartRange)" -eq $inicio -and
+                                "$($_.EndRange)" -eq $exclEnd })) {
+                            Add-DhcpServerv4ExclusionRange -ScopeId $scopeId `
+                                -StartRange $inicio -EndRange $exclEnd -ErrorAction Stop
+                        }
+                        if ($guest) {
+                            Set-DhcpServerv4OptionValue -ScopeId $scopeId -Router $gw `
+                                -DnsServer @('1.1.1.1','9.9.9.9') -ErrorAction Stop
+                            Set-DhcpServerv4DnsSetting -ScopeId $scopeId `
+                                -DynamicUpdates Never -ErrorAction Stop
+                        } else {
+                            Set-DhcpServerv4OptionValue -ScopeId $scopeId -Router $gw `
+                                -DnsServer '10.20.20.11' -DnsDomain 'smartfactory.corp' -ErrorAction Stop
+                            Set-DhcpServerv4DnsSetting -ScopeId $scopeId `
+                                -DynamicUpdates Always -DeleteDnsRROnLeaseExpiry $true -ErrorAction Stop
+                        }
+                    }
+                    Set-Service -Name DHCPServer -StartupType Automatic
+                    $ntp = & w32tm.exe /config '/manualpeerlist:0.br.pool.ntp.org,0x8 1.br.pool.ntp.org,0x8' /syncfromflags:manual /reliable:yes /update 2>&1
+                    [pscustomobject]@{
+                        Dominio=$dom.DNSRoot; DCHostname=$env:COMPUTERNAME
+                        Zonas=@((Get-DnsServerZone | Where-Object ZoneName -in @('smartfactory.corp','20.10.in-addr.arpa')).ZoneName) -join ','
+                        GruposNovos=$novosGrupos
+                        TotalEscopos=@(Get-DhcpServerv4Scope).Count
+                        ServicoDHCP=(Get-Service DHCPServer).Status
+                        NTP=($ntp -join ' ')
+                    }
+                }
+                RegistrarSaida @($out)
+                EscreverLog 'CONFIGURACAO DOS SERVICOS FINALIZADA. Execute a acao Validar.'
+            } finally {
+                if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
+            }
+        }
+        'Validar' {
+            VerificarRede
+            $vm = Get-VM -Name $VmName -ErrorAction Stop
+            if ($vm.State -ne 'Running') { throw 'VM-DC01 desligada.' }
+            $nic = Get-VMNetworkAdapter -VMName $VmName -Name 'SERVIDORES' -ErrorAction Stop
+            $vlan = Get-VMNetworkAdapterVlan -VMName $VmName -VMNetworkAdapterName 'SERVIDORES'
+            $mem = Get-VMMemory -VMName $VmName
+            if ($nic.SwitchName -ne 'SF-LAN' -or $vlan.OperationMode -ne 'Access' -or
+                $vlan.AccessVlanId -ne 20 -or $mem.DynamicMemoryEnabled) {
+                throw 'Topologia da VM nao corresponde: VLAN20/Access/SF-LAN/RAM estatica.'
+            }
+            $session = AbrirSessaoConvidado
+            try {
+                $resultado = Invoke-Command -Session $session -ErrorAction Stop -ScriptBlock {
+                    $ErrorActionPreference = 'Stop'
+                    Import-Module ActiveDirectory,DnsServer,DhcpServer
+                    $cs = Get-CimInstance Win32_ComputerSystem
+                    $dom = Get-ADDomain
+                    $floresta = Get-ADForest
+                    $zonas = @(Get-DnsServerZone | Where-Object ZoneName -in @('smartfactory.corp','20.10.in-addr.arpa'))
+                    $scopes = @(Get-DhcpServerv4Scope)
+                    $grp = @(Get-ADGroup -Filter "Name -like 'GG_*' -or Name -like 'DL_FS_*'")
+                    $root = "DC=smartfactory,DC=corp"
+                    $ous = @('SmartFactory','Infraestrutura','Piloto_GPO')
+                    $ousOk = $true
+                    foreach ($o in $ous) {
+                        if (-not (Get-ADOrganizationalUnit -Identity "OU=$o,$root" -ErrorAction SilentlyContinue)) {
+                            $ousOk = $false
+                        }
+                    }
+                    $srv = Get-DhcpServerInDC
+                    $autorizado = [bool]($srv | Where-Object { "$($_.IPAddress)" -eq '10.20.20.11' })
+                    $dnsSrv = Resolve-DnsName '_ldap._tcp.dc._msdcs.smartfactory.corp' `
+                        -Server 127.0.0.1 -Type SRV -ErrorAction SilentlyContinue
+                    $senha = Get-ADDefaultDomainPasswordPolicy
+                    $compartilhamentos = @(Get-SmbShare -Name 'SYSVOL','NETLOGON' -ErrorAction SilentlyContinue)
+                    $servicosAD = @(Get-Service -Name 'NTDS','DNS','KDC','Netlogon' -ErrorAction Stop)
+                    $ip = Get-NetIPAddress -AddressFamily IPv4 -IPAddress '10.20.20.11' -ErrorAction SilentlyContinue
+                    $reverse = @($zonas | Where-Object ZoneName -eq '20.10.in-addr.arpa')
+                    $internos = @(30,40,50,60,70,80,90)
+                    $okPools = $true
+                    foreach ($v in @($internos + 200)) {
+                        $sid = "10.20.$v.0"
+                        $sc = Get-DhcpServerv4Scope -ScopeId $sid -ErrorAction SilentlyContinue
+                        $exc = @(Get-DhcpServerv4ExclusionRange -ScopeId $sid -ErrorAction SilentlyContinue)
+                        $opts = @(Get-DhcpServerv4OptionValue -ScopeId $sid -ErrorAction SilentlyContinue)
+                        $final = if($v -eq 200) {9} else {20}
+                        $leaseEsperado = if($v -eq 200) {[TimeSpan]::FromHours(8)} else {[TimeSpan]::FromDays(8)}
+                        $optGateway = @($opts | Where-Object OptionId -eq 3)
+                        $optDns = @($opts | Where-Object OptionId -eq 6)
+                        $gwValores = @($optGateway | ForEach-Object {$_.Value} | ForEach-Object {"$_"})
+                        $dnsValores = @($optDns | ForEach-Object {$_.Value} | ForEach-Object {"$_"})
+                        $dnsEsperado = if($v -eq 200) {'1.1.1.1'} else {'10.20.20.11'}
+                        if (-not $sc -or $sc.LeaseDuration -ne $leaseEsperado -or
+                            "10.20.$v.1" -notin $gwValores -or $dnsEsperado -notin $dnsValores -or
+                            -not ($exc | Where-Object {
+                                "$($_.StartRange)" -eq "10.20.$v.1" -and
+                                "$($_.EndRange)" -eq "10.20.$v.$final"
+                            })) { $okPools = $false }
+                    }
+                    $ok = (
+                        $cs.DomainRole -eq 5 -and $env:COMPUTERNAME -eq 'VM-DC01' -and
+                        $dom.DNSRoot -eq 'smartfactory.corp' -and
+                        "$($dom.DomainMode)" -match '2025' -and
+                        "$($floresta.ForestMode)" -match '2025' -and
+                        [bool]$ip -and $zonas.Count -eq 2 -and
+                        [bool]$dnsSrv -and $scopes.Count -eq 8 -and
+                        $compartilhamentos.Count -eq 2 -and
+                        @($servicosAD | Where-Object Status -ne 'Running').Count -eq 0 -and
+                        $grp.Count -ge 21 -and $ousOk -and $autorizado -and $okPools -and
+                        (Get-Service DHCPServer).Status -eq 'Running' -and
+                        $senha.MinPasswordLength -ge 14
+                    )
+                    [pscustomobject]@{
+                        Aprovado=$ok; Dominio=$dom.DNSRoot; Hostname=$env:COMPUTERNAME
+                        Papel=$cs.DomainRole; DominioNivel=$dom.DomainMode
+                        FlorestaNivel=$floresta.ForestMode
+                        FSMO_PDC=$dom.PDCEmulator; GC=(Get-ADDomainController -Identity $env:COMPUTERNAME).IsGlobalCatalog
+                        IP=$ip.IPAddress; Zonas=($zonas.ZoneName -join ', ')
+                        DNS_SRV_Encontrado=[bool]$dnsSrv; Escopos=$scopes.Count
+                        Shares_SYSVOL_NETLOGON=$compartilhamentos.Count
+                        Servicos_AD_Ativos=(@($servicosAD | Where-Object Status -eq 'Running').Count)
+                        Grupos_AGDLP=$grp.Count; OUs_Base_OK=$ousOk
+                        DHCP_Autorizado=$autorizado; Exclusoes_OK=$okPools
+                        Servico_DHCP=(Get-Service DHCPServer).Status
+                        PoliticaSenhaMinima=$senha.MinPasswordLength
+                    }
+                }
+                RegistrarSaida @($resultado)
+                if (-not $resultado.Aprovado) {
+                    throw 'Verificacao parcial: analise o relatorio. Nao declare a etapa aprovada.'
+                }
+                EscreverLog 'VALIDACAO APROVADA: AD, DNS, DHCP, OUs e VM verificados.'
+                if (Test-Path -LiteralPath $ReportPath) {
+                    $doc = Get-Content -LiteralPath $ReportPath -Raw -Encoding UTF8
+                    $doc = $doc.Replace('NAO VALIDADO. Confirmar resultado da acao Validar.',
+                        'VALIDACAO AUTOMATIZADA APROVADA (testes com clientes pendentes).')
+                    Set-Content -LiteralPath $ReportPath -Value $doc -Encoding UTF8
+                    Add-Content -LiteralPath $ReportPath -Encoding UTF8 -Value ("`n## Resultado de validacao - {0}`n- VALIDACAO AUTOMATIZADA APROVADA.`n- Teste de cliente DHCP e inter-VLAN: pendente de endpoints.`n- Credenciais nao registradas.`n" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
+                }
+            } finally {
+                if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
+            }
+        }
+    }
+    EscreverLog ("ACAO ENCERRADA: {0}" -f $Acao)
+} catch {
+    EscreverLog ("FALHA na acao {0}: {1}" -f $Acao,$_.Exception.Message)
+    throw
+}

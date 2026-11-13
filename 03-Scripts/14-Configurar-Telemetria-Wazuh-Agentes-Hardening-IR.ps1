@@ -1,0 +1,555 @@
+﻿# SmartFactory-GS | ETAPA 12 | Agentes Wazuh, Telemetria, Hardening e IR
+# PowerShell 5.1 como administrador no HOST Hyper-V. Uma VM Windows por vez.
+# Nao instala/reinstala o servidor Wazuh; nao toca em GPO/LAPS, VHDX de producao ou memoria.
+[CmdletBinding()]
+param(
+  [ValidateSet('Preparar','BaixarAgente','InstalarAgente','SysmonPiloto','ValidarAgente',
+               'GerarMidiaLinux','ColetarLinux','ValidarEtapa')]
+  [string]$Acao = 'Preparar',
+  [ValidateSet('VM-DC01','VM-FILE01','VM-WEB01','VM-BKP01','CLI-ADM01','PAW-TI01')]
+  [string]$NomeVM = 'CLI-ADM01'
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$Base = 'D:\FIAP\WINDOWS\SmartFactory-GS'
+$DirScripts = Join-Path $Base '03-Scripts\Gerados-Etapa12'
+$DirPacotes = Join-Path $Base '04-Configuracoes\Wazuh\Pacotes'
+$DirGMUD = Join-Path $Base '00-Documentacao\Gestao-Mudancas'
+$DirIR = Join-Path $Base '00-Documentacao\Resposta-Incidentes'
+$DirLogs = Join-Path $Base '09-Logs-Testes'
+$Evid = Join-Path $Base '06-Evidencias\12-Telemetria-Hardening-IR'
+$Roteiros = Join-Path $Base '07-Video\Roteiros'
+$Relatorio = Join-Path $Base '00-Documentacao\12-Telemetria-Hardening-IR.md'
+$Checklist = Join-Path $Base '00-Documentacao\12-Checklist-Telemetria-Hardening.txt'
+$Log = Join-Path $DirLogs '14-Telemetria-Hardening-IR-Resultado.txt'
+$ShLocal = Join-Path $DirScripts '02-Auditar-Endurecer-Wazuh.sh'
+$ShLinux = '02-Auditar-Endurecer-Wazuh.sh'
+$Roteiro = Join-Path $Roteiros 'Roteiro_Video_Etapa_13.txt'
+$Msi = Join-Path $DirPacotes 'wazuh-agent-4.14.10-1.msi'
+$MsiUrl = 'https://packages.wazuh.com/4.x/windows/wazuh-agent-4.14.10-1.msi'
+$Sha512Url = 'https://packages.wazuh.com/4.x/checksums/wazuh/4.14.10/wazuh-agent-4.14.10-1.msi.sha512'
+$Sha512File = Join-Path $DirPacotes 'wazuh-agent-4.14.10-1.msi.sha512'
+$Transfer = Join-Path $Base '02-VMs\VM-WAZUH01\VM-WAZUH01-SFSETUP-256MB.vhdx'
+$WazuhIP = '10.20.110.10'
+$WinVMs = @('VM-DC01','VM-FILE01','VM-WEB01','VM-BKP01','CLI-ADM01','PAW-TI01')
+
+function Registrar([string]$Msg) {
+  $linha = ('{0} | {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'),$Msg)
+  Add-Content -LiteralPath $Log -Value $linha -Encoding UTF8
+  Write-Host $linha
+}
+function Preflight {
+  if ($PSVersionTable.PSVersion.Major -ne 5) { throw 'Execute no Windows PowerShell 5.1 do HOST.' }
+  $admin = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+  if (-not $admin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Abra o PowerShell como Administrador.' }
+  if (-not (Test-Path -LiteralPath $Base -PathType Container)) { throw "Pasta nao encontrada: $Base" }
+  Import-Module Hyper-V -ErrorAction Stop
+  foreach ($p in @($DirScripts,$DirPacotes,$DirGMUD,$DirIR,$DirLogs,$Evid,$Roteiros,(Split-Path $Relatorio))) {
+    New-Item -Path $p -ItemType Directory -Force | Out-Null
+  }
+}
+function ValidarMemoria {
+  foreach ($n in @('VM-FW01','VM-DC01','VM-WAZUH01')) {
+    $v = Get-VM -Name $n -ErrorAction Stop
+    $m = Get-VMMemory -VMName $n
+    Registrar ('RAM: {0} | {1} | Start={2:N2} GiB | Atual={3:N2} GiB | Dinamica={4}' -f $n,$v.State,($m.Startup/1GB),($v.MemoryAssigned/1GB),$m.DynamicMemoryEnabled)
+  }
+  $mem = Get-CimInstance Win32_OperatingSystem
+  Registrar ('HOST RAM livre agora: {0:N2} GiB' -f ($mem.FreePhysicalMemory/1MB))
+}
+function SalvarSeAusente([string]$Destino,[string]$Texto) {
+  if (-not (Test-Path -LiteralPath $Destino)) {
+    Set-Content -LiteralPath $Destino -Value $Texto -Encoding UTF8
+  }
+}
+function GerarDocumentacao {
+  SalvarSeAusente $Relatorio @'
+# SmartFactory GS | Etapa 12 - Hardening, Telemetria, Wazuh e IR
+
+## Estado comprovado antes desta etapa
+- 8 de 8 VMs implementadas; CP-03 Wazuh all-in-one instalado e validado localmente.
+- FW01: 1536 MiB ESTATICOS; WAZUH01: 7680 MiB ESTATICOS; DC01: memoria DINAMICA.
+- Wazuh Ubuntu Server 24.04.5 LTS; Wazuh 4.14.10, IP 10.20.110.10/24, DNS 10.20.110.1.
+- SO do Wazuh em VHDX 40 GiB; Indexer em VHDX 80 GiB; SFSETUP 256 MiB.
+- GPOs e LAPS foram finalizadas na Etapa 11, sem necessidade de reaplicacao aqui.
+
+## Objetivo e metodo
+- Preparar e instalar agente Wazuh 4.14.10 nos seis convidados Windows, UM POR VEZ, com WAZUH desligada.
+- Configurar eventchannels por perfil, FIM seletivo e coleta de inventario SCA/Syscollector nativos.
+- Piloto Sysmon integrado ao Windows 11 quando o recurso estiver disponivel; sem duplo Sysmon.
+- Auditar e reforcar root SSH no Ubuntu Wazuh sem eliminar acesso administrativo da PAW.
+- Preparar GMUD, playbooks IR, plano de rollback e matriz de evidencias.
+- A fase final de testes demonstrara ingestao de eventos no Wazuh, FIM, SCA, CVE, 4104, Sysmon e RBAC.
+
+## Diferencas justificadas do CP-03 corporativo
+- Nao aplicamos OSConfig em toda a producao sem homologacao; poderia alterar centenas de configuracoes.
+- Nao ativamos resposta automatica destrutiva no Wazuh, principalmente em hosts de producao.
+- Indexer e Dashboard estao em um unico host, sem HA, com RAM 7,5 GiB, abaixo dos 8 GiB recomendados.
+- O teste simultaneo Wazuh + cliente depende de memoria fisica; a instalacao dos agentes e offline.
+
+## Evidencias desta etapa
+- 09-Logs-Testes/14-Telemetria-Hardening-IR-Resultado.txt
+- 09-Logs-Testes/14-Agent-<VM>.txt para cada Windows instalado
+- 09-Logs-Testes/14-Linux-Wazuh-Resultado.txt
+- Capturas em 06-Evidencias/12-Telemetria-Hardening-IR
+
+## Restricao de afirmacoes
+Instalar agentes offline nao prova que seus eventos chegaram ao Wazuh. Nao marcar T17-T27 aprovado antes da fase final.
+'@
+  SalvarSeAusente $Checklist @'
+[ ] FW01 1.5 GiB estaticos; DC01 dinamica; WAZUH01 7.5 GiB estaticos preservados
+[ ] WAZUH01 Off durante deploy dos agentes Windows
+[ ] MSI oficial Wazuh 4.14.10 baixado e assinatura verificavel
+[ ] Agente Wazuh instalado e configurado em VM-DC01
+[ ] Agente Wazuh instalado e configurado em VM-FILE01
+[ ] Agente Wazuh instalado e configurado em VM-WEB01
+[ ] Agente Wazuh instalado e configurado em VM-BKP01
+[ ] Agente Wazuh instalado e configurado em CLI-ADM01
+[ ] Agente Wazuh instalado e configurado em PAW-TI01
+[ ] FIM seletivo na pasta REAL da Intranet: C:\inetpub\SmartFactory-Intranet
+[ ] Coleta Windows Security/System/Application, PowerShell e Defender
+[ ] Sysmon Windows 11 PILOTO instalado se compatibilidade confirmada
+[ ] Gestao de mudancas GMUD e 4 playbooks IR criados
+[ ] Wazuh: auditoria de servicos, SCA, vulnerabilidades e Ubuntu SSH
+[ ] Evidencia Linux coletada sem credenciais; arquivos sigilosos nao exportados
+[ ] Testes T17-T27 e RBAC pendentes para a bateria final (nao simular aprovacao)
+'@
+  SalvarSeAusente (Join-Path $DirGMUD 'GMUD-CHG-2026-001-Telemetria.md') @'
+# GMUD | CHG-2026-001 | Telemetria SmartFactory
+Responsavel: [preencher]
+Objetivo: instalar agentes Wazuh offline, eventchannels, FIM, Sysmon piloto e preparar IR.
+Ativos: DC01, FILE01, WEB01, BKP01, CLI-ADM01, PAW-TI01 e WAZUH01.
+Risco: aumento de logs, carga em disco/CPU, reducao de memoria e falha de agente.
+Pre-teste: backup de GPO e System State, estado de servicos, espaco e RAM.
+Janela: [data/hora da execucao]
+Autorizacao: [preencher]
+Rollback Windows: restaurar copia de ossec.conf, reiniciar WazuhSvc; remover Sysmon somente se autorizado.
+Rollback Linux: restaurar /etc/ssh/sshd_config.d e recarregar sshd; nao reinstalar Wazuh.
+Pos-teste: status WazuhSvc, XML valido, eventos gerados localmente, fase futura de dashboard.
+Validador: [preencher]
+Resultado: [sucesso/parcial/falha; anexar evidencia]
+'@
+  SalvarSeAusente (Join-Path $DirIR 'IR-01-Ransomware.md') @'
+# IR-01 | Suspeita de ransomware em endpoint
+1. Registrar ticket, horario, usuario, IP, hostname e alerta Wazuh/Defender.
+2. Preservar Security, Sysmon, logs do agente, hashes e arquivos suspeitos.
+3. Verificar escopo em SMB, FILE01, contas administrativas e movimentos laterais.
+4. Propor isolamento seletivo no firewall; nunca desligar host OT automaticamente.
+5. Com autorizacao, conter conta/sessao suspeita e bloquear IOCs confirmados.
+6. Investigar persistencia, erradicar e rotacionar credenciais comprometidas.
+7. Restaurar de backup validado APOS confirmar remediacao, conferir hashes.
+8. Reabrir acessos por GMUD; registrar lições e atualizar deteccoes.
+'@
+  SalvarSeAusente (Join-Path $DirIR 'IR-02-Conta-Privilegiada.md') @'
+# IR-02 | Conta privilegiada comprometida
+1. Preservar eventos 4624/4625/4648/4672/4728/4732/4756/5136.
+2. Confirmar identidade, origens, sessoes e escopo; registrar UTC e local.
+3. Com autorizacao, revogar sessoes e suspender a conta comprometida.
+4. Examinar GPO, membros de grupos e criacao de usuarios/servicos.
+5. Rotacionar credenciais afetadas e revisar logins pela PAW.
+6. NUNCA automatizar reset de krbtgt; somente plano formal de recuperacao AD.
+7. Validar recuperacao e gerar GMUD pos-incidente.
+'@
+  SalvarSeAusente (Join-Path $DirIR 'IR-03-Intranet-DMZ.md') @'
+# IR-03 | Comprometimento de WEB01/IIS
+1. Preservar IIS logs, Windows logs, Wazuh e status do site.
+2. Correlacionar FIM em C:\inetpub\SmartFactory-Intranet e eventos de processo.
+3. Conter na DMZ com alteracao formal no pfSense, sem bloquear a empresa por acidente.
+4. Examinar arquivos, App Pool, SPN, conta de servico e certificado.
+5. Se comprometimento confirmado, reconstruir de base confiavel e restaurar apenas conteudo verificado.
+6. Trocar segredos/certificados possivelmente expostos e revalidar 301/443/SSO.
+7. Registrar GMUD e lições aprendidas.
+'@
+  SalvarSeAusente (Join-Path $DirIR 'IR-04-Producao-OT.md') @'
+# IR-04 | Incidente em Producao/OT
+1. Priorizar seguranca fisica, integridade de processo e disponibilidade operacional.
+2. Identificar ativo, responsavel operacional e risco de parada.
+3. Nao desligar PLC/IHM ou executar Active Response destrutivo automaticamente.
+4. Preservar eventos, trafego e evidencias com minima interferencia.
+5. Restringir somente comunicacoes indevidas por ACL, com aprovacao.
+6. Recuperar em janela autorizada e validar servico com responsavel OT.
+7. Registrar GMUD, RTO/RPO real e lições aprendidas.
+'@
+  SalvarSeAusente $Roteiro @'
+Nesta etapa, finalizamos a preparacao de seguranca e monitoramento da SmartFactory, antes da bateria completa de testes. Como o computador possui apenas dezesseis gigabytes de RAM, mantivemos a Wazuh desligada enquanto configuravamos cada servidor Windows individualmente. Preservamos os ajustes anteriores: um giga e meio para o pfSense, sete gigas e meio para o Wazuh, ambos com memoria estatica, e memoria dinamica no controlador de dominio.
+
+Primeiro, executamos a preparacao do PowerShell, que criou o relatorio tecnico, checklist, pastas de evidencias, modelos de gestao de mudancas e quatro procedimentos de resposta a incidentes. O script tambem registrou a configuracao real das VMs e preparou a instalacao do agente oficial Wazuh, na mesma versao da plataforma central.
+
+Depois, instalamos o agente em cada maquina Windows, uma por vez, utilizando PowerShell Direct. Configuramos o endereco do Manager, a porta de registro e os canais de eventos de Seguranca, Sistema e Aplicacao. Acrescentamos eventos do PowerShell, Windows Defender e, quando disponiveis, de DNS, DHCP e outros servicos especificos. Na WEB01, configuramos tambem os logs do IIS.
+
+A automacao preparou o File Integrity Monitoring, ou FIM, apenas nos caminhos relevantes, evitando varrer discos inteiros e gerar consumo desnecessario. No servidor web, o monitoramento aponta para o diretorio real da intranet. No FILE01, utiliza uma pasta piloto; no controlador de dominio, monitora as politicas do SYSVOL. O inventario de software e a avaliacao de configuracoes serao fornecidos pelos modulos nativos Syscollector e SCA do agente.
+
+Para melhorar a visibilidade de processos, preparamos o Sysmon como piloto na estacao Windows 11, sem instalar duas implementacoes diferentes desse recurso. Em seguida, revisamos o Ubuntu do Wazuh, os componentes Manager, Indexer, Dashboard e Filebeat, a configuracao de vulnerabilidades, o firewall local e a restricao de SSH para impedir login remoto direto como root.
+
+Por fim, registramos as evidencias e deixamos preparados os procedimentos para ransomware, comprometimento de contas, incidentes na DMZ e ocorrencias em Producao. A documentacao inclui responsaveis, janela de mudanca, riscos, plano de reversao e requisitos de autorizacao. Nao aplicamos automaticamente uma baseline Microsoft com centenas de parametros nem respostas destrutivas que poderiam interromper o dominio ou a Producao. Os agentes podem ser instalados sem o servidor Wazuh ligado; por isso, a prova de ingestao real de eventos, alertas, RBAC e correlacao sera realizada na fase final de testes integrados.
+'@
+}
+function GerarLinux {
+  $src = @'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+# Etapa12: NAO reinstala Wazuh, nao altera indexer heap, UFW ou autenticacao SSH por senha.
+[[ "${EUID}" -eq 0 ]] || { echo 'Execute com sudo.' >&2; exit 1; }
+OUT='/root/smartfactory-wazuh/ETAPA12-RESULTADO.txt'
+mkdir -p /root/smartfactory-wazuh
+chmod 700 /root/smartfactory-wazuh
+{
+ echo '=== SmartFactory | Etapa12 | Auditoria Wazuh/Linux ==='
+ date -Is
+ hostnamectl --static
+ lsb_release -ds || true
+ ip -4 -br address
+ free -h
+ df -h / /var/lib/wazuh-indexer
+ echo '-- Pacotes Wazuh --'
+ dpkg-query -W -f='${Package} ${Version}\n' wazuh-manager wazuh-indexer wazuh-dashboard filebeat || true
+ echo '-- Servicos --'
+ for svc in wazuh-manager wazuh-indexer wazuh-dashboard filebeat; do
+   printf '%s: ' "$svc"
+   systemctl is-active "$svc" || true
+ done
+ echo '-- Modulos Wazuh (nao contem senhas) --'
+ grep -A 3 -B 1 '<vulnerability-detection>' /var/ossec/etc/ossec.conf || true
+ echo '-- Firewall --'
+ ufw status verbose
+ echo '-- AppArmor --'
+ if aa-status --enabled >/dev/null 2>&1; then echo 'AppArmor ativo'; else echo 'AppArmor indisponivel'; fi
+ echo '-- Ajuste do indexador --'
+ sysctl vm.max_map_count
+} > "$OUT" 2>&1
+# Endurecimento seguro: root remoto proibido, sem cortar password auth do operador sfadmin.
+mkdir -p /etc/ssh/sshd_config.d
+CONF='/etc/ssh/sshd_config.d/60-smartfactory-root.conf'
+if [[ ! -f "$CONF" ]]; then
+  printf 'PermitRootLogin no\n' > "$CONF"
+  chmod 644 "$CONF"
+fi
+if /usr/sbin/sshd -t; then
+  systemctl reload ssh
+  echo 'SSH root remoto: proibido via config SmartFactory' >> "$OUT"
+else
+  rm -f "$CONF"
+  echo 'ALERTA: sshd -t falhou; arquivo de hardening revertido.' >> "$OUT"
+  exit 1
+fi
+# Configuracoes originais preservadas, inclusive senhas e certificados.
+if ! systemctl is-active --quiet wazuh-manager; then echo 'ERRO: manager inativo' >> "$OUT"; exit 1; fi
+if ! systemctl is-active --quiet wazuh-indexer; then echo 'ERRO: indexer inativo' >> "$OUT"; exit 1; fi
+if ! systemctl is-active --quiet wazuh-dashboard; then echo 'ERRO: dashboard inativo' >> "$OUT"; exit 1; fi
+if ! systemctl is-active --quiet filebeat; then echo 'ERRO: filebeat inativo' >> "$OUT"; exit 1; fi
+CODE=$(curl -sk --max-time 15 -o /dev/null -w '%{http_code}' https://127.0.0.1/ || true)
+if [[ -z "$CODE" || "$CODE" == 000 ]]; then echo 'ERRO: HTTPS Dashboard nao respondeu' >> "$OUT"; exit 1; fi
+printf 'HTTPS local: HTTP %s\n' "$CODE" >> "$OUT"
+echo 'AUDITORIA ETAPA12 CONCLUIDA: servicos ativos, SSH root restrito.' >> "$OUT"
+chmod 600 "$OUT"
+cat "$OUT"
+# Salvar evidencia sem credenciais somente em midia local montada.
+if mountpoint -q /mnt/sfsetup && [[ -w /mnt/sfsetup ]]; then
+  cp "$OUT" /mnt/sfsetup/RESULTADO_ETAPA12_LINUX.txt
+  sync
+  echo 'Resultado exportado para SFSETUP.'
+else
+  echo 'SFSETUP nao montada para escrita; evidencia permanece em /root/smartfactory-wazuh/ETAPA12-RESULTADO.txt.'
+fi
+'@
+  $src = $src.Replace("`r`n","`n")
+  [IO.File]::WriteAllText($ShLocal,$src,(New-Object Text.UTF8Encoding($false)))
+  Registrar "Script Bash gerado: $ShLocal"
+}
+function ValidarHashOficial {
+  if (-not (Test-Path -LiteralPath $Msi)) { throw 'MSI nao encontrado; use BaixarAgente.' }
+  if (-not (Test-Path -LiteralPath $Sha512File)) { throw 'Checksum oficial ausente; execute BaixarAgente.' }
+  $texto=Get-Content -LiteralPath $Sha512File -Raw
+  if ($texto -notmatch '[0-9a-fA-F]{128}') { throw 'Arquivo SHA512 oficial nao contem hash valido.' }
+  $esperado=$Matches[0].ToUpperInvariant()
+  $observado=(Get-FileHash -LiteralPath $Msi -Algorithm SHA512).Hash.ToUpperInvariant()
+  if ($esperado -ne $observado) { throw 'SHA512 do MSI difere do checksum oficial. Nao instalar.' }
+  $auth=Get-AuthenticodeSignature -FilePath $Msi
+  Registrar "MSI 4.14.10: SHA512 oficial CONFERE; assinatura Authenticode=$($auth.Status)"
+}
+function ObterVM ([string]$vmName) {
+  $v = Get-VM -Name $vmName -ErrorAction Stop
+  if ($v.State -ne 'Running') { throw "Ligue $vmName antes desta acao. Estado atual: $($v.State)." }
+  $wazuh = Get-VM -Name 'VM-WAZUH01' -ErrorAction Stop
+  if ($wazuh.State -ne 'Off') { throw 'Para configurar Windows, WAZUH01 precisa estar Off (economia de RAM).' }
+  $v
+}
+function CredencialGuest ([string]$vmName) {
+  Get-Credential -Message "Credencial ADMINISTRATIVA do Windows convidado $vmName (PowerShell Direct). Nao salva senha."
+}
+function CopiarParaGuest([string]$vmName,[string]$source,[string]$dest,[pscredential]$cred) {
+  $sessao = $null
+  try {
+    $sessao = New-PSSession -VMName $vmName -Credential $cred -ErrorAction Stop
+
+    Invoke-Command -Session $sessao -ScriptBlock {
+      param($destino)
+      New-Item -ItemType Directory -Path (Split-Path $destino -Parent) -Force | Out-Null
+    } -ArgumentList $dest -ErrorAction Stop
+
+    Copy-Item -LiteralPath $source -Destination $dest -ToSession $sessao -Force -ErrorAction Stop
+
+    $verificacao = Invoke-Command -Session $sessao -ScriptBlock {
+      param($arquivo)
+      (Get-Item -LiteralPath $arquivo -ErrorAction Stop).Length
+    } -ArgumentList $dest -ErrorAction Stop
+
+    if ($verificacao -ne (Get-Item -LiteralPath $source).Length) {
+      throw "Tamanho do MSI transferido nao corresponde ao original."
+    }
+
+    Write-Host "MSI transferido com sucesso via PowerShell Direct."
+  }
+  finally {
+    if ($sessao) { Remove-PSSession $sessao }
+  }
+}
+function ExecutarGuest([string]$vmName,[pscredential]$cred,[scriptblock]$block,[object[]]$arguments=@()) {
+  Invoke-Command -VMName $vmName -Credential $cred -ScriptBlock $block -ArgumentList $arguments -ErrorAction Stop
+}
+function PrepararMidiaLinux {
+  $v = Get-VM -Name 'VM-WAZUH01' -ErrorAction Stop
+  if ($v.State -ne 'Off') { throw 'Desligue a WAZUH01 normalmente antes de montar o SFSETUP no Windows.' }
+  if (-not (Test-Path -LiteralPath $Transfer)) { throw "SFSETUP nao encontrado: $Transfer" }
+  GerarLinux
+  $mounted=$false
+  try {
+    $vdisk = Mount-VHD -Path $Transfer -Passthru -ErrorAction Stop
+    $mounted=$true
+    $disk = $vdisk | Get-Disk
+    $part = $disk | Get-Partition | Where-Object DriveLetter | Select-Object -First 1
+    if (-not $part) { throw 'O disco SFSETUP nao possui letra. Nao formate o disco.' }
+    $volume = Get-Volume -DriveLetter $part.DriveLetter
+    if ($volume.FileSystemLabel -ne 'SFSETUP' -or $volume.FileSystem -ne 'FAT32') {
+      throw 'Volume inesperado: nao e SFSETUP/FAT32. Nao escrever.'
+    }
+    $dest = '{0}:\{1}' -f $part.DriveLetter,$ShLinux
+    Copy-Item -LiteralPath $ShLocal -Destination $dest -Force -ErrorAction Stop
+    Registrar "Script Linux copiado em SFSETUP: $dest"
+  }
+  finally { if($mounted){ Dismount-VHD -Path $Transfer -ErrorAction Continue } }
+}
+function ColetarLinux {
+  $v = Get-VM -Name 'VM-WAZUH01' -ErrorAction Stop
+  if ($v.State -ne 'Off') { throw 'Desligue normalmente a WAZUH01 antes de coletar SFSETUP.' }
+  $mounted=$false
+  try {
+    $vdisk=Mount-VHD -Path $Transfer -Passthru -ReadOnly -ErrorAction Stop
+    $mounted=$true
+    $disk=$vdisk | Get-Disk
+    $part=$disk | Get-Partition | Where-Object DriveLetter | Select-Object -First 1
+    if(-not $part){throw 'SFSETUP nao possui letra.'}
+    $vol=Get-Volume -DriveLetter $part.DriveLetter
+    if ($vol.FileSystemLabel -ne 'SFSETUP') { throw 'Disco montado nao e SFSETUP.' }
+    $source='{0}:\RESULTADO_ETAPA12_LINUX.txt' -f $part.DriveLetter
+    if(-not(Test-Path $source)){throw 'Resultado Linux nao encontrado. Confira montagem em /mnt/sfsetup e execucao Bash.'}
+    Copy-Item $source (Join-Path $DirLogs '14-Linux-Wazuh-Resultado.txt') -Force
+    Registrar 'Resultado Linux importado para 09-Logs-Testes/14-Linux-Wazuh-Resultado.txt.'
+  }
+  finally {if($mounted){Dismount-VHD -Path $Transfer -ErrorAction Continue}}
+}
+
+Preflight
+switch($Acao) {
+  'Preparar' {
+    GerarDocumentacao
+    GerarLinux
+    ValidarMemoria
+    Registrar 'Preparacao concluida. Nenhuma VM/memoria/GPO/LAPS alterada.'
+  }
+  'BaixarAgente' {
+    GerarDocumentacao
+    if (-not (Test-Path -LiteralPath $Msi -PathType Leaf)) {
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+      Invoke-WebRequest -Uri $MsiUrl -OutFile $Msi -UseBasicParsing -ErrorAction Stop
+    }
+    if ((Get-Item -LiteralPath $Msi).Length -lt 2MB) { throw 'MSI muito pequeno: arquivo possivelmente incompleto.' }
+    if (-not (Test-Path -LiteralPath $Sha512File)) {
+      Invoke-WebRequest -Uri $Sha512Url -OutFile $Sha512File -UseBasicParsing -ErrorAction Stop
+    }
+    ValidarHashOficial
+    Registrar 'Agente baixado: integridade SHA512 oficial confirmada.'
+  }
+  'InstalarAgente' {
+    $vm=ObterVM $NomeVM
+    if(-not(Test-Path $Msi)){throw 'MSI nao existe. Execute -Acao BaixarAgente primeiro.'}
+    ValidarHashOficial
+    $cred=CredencialGuest $NomeVM
+    $dest='C:\SF-Telemetria\wazuh-agent-4.14.10-1.msi'
+    CopiarParaGuest $NomeVM $Msi $dest $cred
+    $result=ExecutarGuest $NomeVM $cred {
+      param($msiPath,$ip,$vmName)
+      $ErrorActionPreference='Stop'
+      $folder='C:\SF-Telemetria'
+      New-Item -Path $folder -ItemType Directory -Force | Out-Null
+      $service=Get-Service -Name 'WazuhSvc' -ErrorAction SilentlyContinue
+      if (-not $service) {
+        $args=@('/i',$msiPath,'/qn','/norestart',"WAZUH_MANAGER=$ip","WAZUH_REGISTRATION_SERVER=$ip","WAZUH_AGENT_NAME=$vmName")
+        $proc=Start-Process -FilePath 'msiexec.exe' -ArgumentList $args -Wait -PassThru -ErrorAction Stop
+        if ($proc.ExitCode -notin @(0,3010)) { throw "Instalacao Wazuh MSI falhou: exit $($proc.ExitCode)" }
+      }
+      $xmlPath='C:\Program Files (x86)\ossec-agent\ossec.conf'
+      if (-not (Test-Path $xmlPath)) { throw 'ossec.conf nao encontrado apos MSI.' }
+      Copy-Item $xmlPath (Join-Path $folder ('ossec.conf-ANTES-{0}.bak' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))) -ErrorAction Stop
+      [xml]$doc=Get-Content -Path $xmlPath -Raw -ErrorAction Stop
+      $root=$doc.DocumentElement
+      if ($root.Name -ne 'ossec_config') { throw 'Raiz XML ossec.conf inesperada. Nao sobrescrever.' }
+      $client=$root.SelectSingleNode('client')
+      if (-not $client) { $client=$doc.CreateElement('client');[void]$root.AppendChild($client) }
+      $server=$client.SelectSingleNode('server')
+      if(-not $server) { $server=$doc.CreateElement('server');[void]$client.AppendChild($server) }
+      $address=$server.SelectSingleNode('address')
+      if(-not $address){$address=$doc.CreateElement('address');[void]$server.AppendChild($address)}
+      $address.InnerText=$ip
+      $all=@($root.SelectNodes('localfile/location') | ForEach-Object { $_.InnerText })
+      $channels=@('Security','System','Application','Microsoft-Windows-PowerShell/Operational',
+        'Microsoft-Windows-Windows Defender/Operational','Microsoft-Windows-LAPS/Operational',
+        'Microsoft-Windows-Sysmon/Operational')
+      if($vmName -eq 'VM-DC01') {
+        $channels+=@('Microsoft-Windows-DNS-Server/Audit','Microsoft-Windows-Dhcp-Server/Operational')
+      }
+      foreach($chan in $channels) {
+        if($all -contains $chan){continue}
+        $exists=$false
+        try { $null=Get-WinEvent -ListLog $chan -ErrorAction Stop; $exists=$true } catch {}
+        if (-not $exists) {continue}
+        $item=$doc.CreateElement('localfile')
+        $location=$doc.CreateElement('location');$location.InnerText=$chan
+        $format=$doc.CreateElement('log_format');$format.InnerText='eventchannel'
+        [void]$item.AppendChild($location);[void]$item.AppendChild($format)
+        [void]$root.AppendChild($item)
+      }
+      if ($vmName -eq 'VM-WEB01') {
+        $iisLog='C:\inetpub\logs\LogFiles\W3SVC*\u_ex*.log'
+        if (-not ($all -contains $iisLog)) {
+          $lf=$doc.CreateElement('localfile')
+          $lc=$doc.CreateElement('location');$lc.InnerText=$iisLog
+          $fmt=$doc.CreateElement('log_format');$fmt.InnerText='iis'
+          [void]$lf.AppendChild($lc);[void]$lf.AppendChild($fmt);[void]$root.AppendChild($lf)
+        }
+      }
+      $fim=$root.SelectSingleNode('syscheck')
+      if(-not $fim){$fim=$doc.CreateElement('syscheck');[void]$root.AppendChild($fim)}
+      $paths=@()
+      switch($vmName) {
+        'VM-DC01' { $paths=@('C:\Windows\SYSVOL\domain\Policies') }
+        'VM-FILE01' { $paths=@('E:\Dados\TI\SF-FIM-Piloto') }
+        'VM-WEB01' { $paths=@('C:\inetpub\SmartFactory-Intranet') }
+        'VM-BKP01' { $paths=@('B:\Repositorio\Politicas') }
+        default { $paths=@('C:\SF-Telemetria\FIM-Piloto') }
+      }
+      foreach($p in $paths) {
+        if($p -like '*SF-FIM-Piloto' -or $p -like '*FIM-Piloto'){
+          New-Item -Path $p -ItemType Directory -Force | Out-Null
+        }
+        if (-not (Test-Path $p)) { throw "Pasta FIM inexistente: $p (nao inventar monitoramento)." }
+        $present=@($fim.SelectNodes('directories') | ForEach-Object {$_.InnerText}) -contains $p
+        if (-not $present) {
+          $node=$doc.CreateElement('directories')
+          if($vmName -ne 'VM-DC01') { $node.SetAttribute('realtime','yes') }
+          $node.InnerText=$p
+          [void]$fim.AppendChild($node)
+        }
+      }
+      # Syscollector/SCA ja existem na instalacao Wazuh: preservar em vez de substituir blocos.
+      $doc.Save($xmlPath)
+      # Segundo parse: erro XML interrompe antes de mexer no servico.
+      [void][xml](Get-Content $xmlPath -Raw)
+      Set-Service -Name 'WazuhSvc' -StartupType Automatic -ErrorAction Stop
+      Restart-Service -Name 'WazuhSvc' -ErrorAction Stop
+      $service=Get-Service 'WazuhSvc'
+      if ($service.Status -ne 'Running') { throw 'Servico WazuhSvc nao ficou Running.' }
+      # Baseline conservadora, sem modificar acesso a LDAP, RDP, GPO ou LAPS.
+      Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True -ErrorAction Stop
+      if (Get-Command Set-SmbServerConfiguration -ErrorAction SilentlyContinue) {
+        Set-SmbServerConfiguration -EnableSMB1Protocol $false -RequireSecuritySignature $true -Force -ErrorAction Stop | Out-Null
+      }
+      if ($vmName -eq 'VM-WEB01') {
+        Import-Module WebAdministration -ErrorAction Stop
+        Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter 'system.webServer/directoryBrowse' -Name enabled -Value $false -ErrorAction Stop
+      }
+      [pscustomobject]@{
+        Host=$env:COMPUTERNAME
+        Service=$service.Status.ToString()
+        Manager=$ip
+        OssecXml='Valido'
+        FimPaths=($paths -join ', ')
+        FirewallsAtivos=@((Get-NetFirewallProfile) | Where-Object Enabled).Count
+        LocalLogs='Configurados; coleta remota ainda nao testada'
+      }
+    } @($dest,$WazuhIP,$NomeVM)
+    $report = Join-Path $DirLogs ("14-Agent-{0}.txt" -f $NomeVM)
+    $result | Format-List | Out-String -Width 180 | Set-Content $report -Encoding UTF8
+    Registrar "Agente $NomeVM configurado. Registro local: $report. Aguardando gerente Wazuh ativo para registro remoto."
+  }
+  'SysmonPiloto' {
+    if($NomeVM -ne 'CLI-ADM01'){throw 'Por seguranca, SysmonPiloto e exclusivo da CLI-ADM01.'}
+    $vm=ObterVM $NomeVM
+    $cred=CredencialGuest $NomeVM
+    $result=ExecutarGuest $NomeVM $cred {
+      $ErrorActionPreference='Stop'
+      $svc=@(Get-Service -Name 'Sysmon*' -ErrorAction SilentlyContinue)
+      if($svc.Count -eq 0){
+        $feat=Get-WindowsOptionalFeature -Online -FeatureName Sysmon -ErrorAction SilentlyContinue
+        if(-not $feat){return 'PENDENTE: Sysmon opcional indisponivel nesta compilacao; nao baixar instalador desconhecido.'}
+        if($feat.State -ne 'Enabled'){
+          Enable-WindowsOptionalFeature -Online -FeatureName Sysmon -All -NoRestart -ErrorAction Stop | Out-Null
+        }
+        $bin=Get-Command 'sysmon.exe' -ErrorAction SilentlyContinue
+        if(-not $bin){return 'PENDENTE: recurso habilitado, mas sysmon.exe nao disponivel; verificar reinicio.'}
+        $proc=Start-Process -FilePath $bin.Source -ArgumentList '-i' -Wait -PassThru
+        if($proc.ExitCode -ne 0){return "PENDENTE: sysmon -i retornou $($proc.ExitCode); revisar instalacao."}
+      }
+      $xmlPath='C:\Program Files (x86)\ossec-agent\ossec.conf'
+      if(-not(Test-Path $xmlPath)){throw 'Instale o agente primeiro.'}
+      [xml]$doc=Get-Content $xmlPath -Raw
+      $channel='Microsoft-Windows-Sysmon/Operational'
+      $already=@($doc.DocumentElement.SelectNodes('localfile/location') | ForEach-Object { $_.InnerText }) -contains $channel
+      if(-not $already){
+        $lf=$doc.CreateElement('localfile')
+        $lc=$doc.CreateElement('location');$lc.InnerText=$channel
+        $fmt=$doc.CreateElement('log_format');$fmt.InnerText='eventchannel'
+        [void]$lf.AppendChild($lc);[void]$lf.AppendChild($fmt)
+        [void]$doc.DocumentElement.AppendChild($lf)
+        $doc.Save($xmlPath)
+      }
+      Restart-Service WazuhSvc -ErrorAction Stop
+      "Sysmon piloto: $(Get-Service Sysmon* | Select-Object -ExpandProperty Name -First 1); WazuhSvc reiniciado; canal $channel preparado."
+    }
+    Registrar "CLI-ADM01: $result"
+  }
+  'ValidarAgente' {
+    $vm=ObterVM $NomeVM
+    $cred=CredencialGuest $NomeVM
+    $r=ExecutarGuest $NomeVM $cred {
+      $ErrorActionPreference='Stop'
+      $path='C:\Program Files (x86)\ossec-agent\ossec.conf'
+      $s=Get-Service WazuhSvc -ErrorAction Stop
+      if($s.Status -ne 'Running'){throw "WazuhSvc: $($s.Status)"}
+      [xml]$d=Get-Content $path -Raw
+      $address=$d.DocumentElement.SelectSingleNode('client/server/address').InnerText
+      if($address -ne '10.20.110.10'){throw "Manager configurado incorretamente: $address"}
+      "VALIDADO LOCALMENTE: host=$env:COMPUTERNAME | WazuhSvc=Running | manager=$address | canais=$(@($d.DocumentElement.SelectNodes('localfile')).Count)"
+    }
+    Registrar "${NomeVM}: $r"
+  }
+  'GerarMidiaLinux' { PrepararMidiaLinux }
+  'ColetarLinux' { ColetarLinux }
+  'ValidarEtapa' {
+    $instalados=@(Get-ChildItem -Path $DirLogs -Filter '14-Agent-*.txt' -ErrorAction SilentlyContinue)
+    Registrar "Agentes Windows com logs locais: $($instalados.Count) de $($WinVMs.Count)."
+    foreach($n in $WinVMs){
+      $p=Join-Path $DirLogs ("14-Agent-{0}.txt" -f $n)
+      Registrar ("{0}: {1}" -f $n, $(if(Test-Path $p){'LOG LOCAL PRESENTE'}else{'PENDENTE'}))
+    }
+    $linux = Join-Path $DirLogs '14-Linux-Wazuh-Resultado.txt'
+    Registrar ('Auditoria Linux importada: '+[bool](Test-Path $linux))
+    Registrar 'IMPORTANTE: T17-T27, RBAC, ingestao de eventos e bloqueios em rede serao testados na BATERIA FINAL.'
+    if($instalados.Count -lt $WinVMs.Count -or -not(Test-Path $linux)) {
+      Registrar 'ETAPA12 PARCIAL: executar acoes restantes antes de declarar encerramento da configuracao.'
+    } else {
+      Registrar 'ETAPA12 CONFIGURADA: 6 agentes preparados offline, Linux auditado e playbooks gerados. Testes integrados pendentes.'
+    }
+  }
+}
+

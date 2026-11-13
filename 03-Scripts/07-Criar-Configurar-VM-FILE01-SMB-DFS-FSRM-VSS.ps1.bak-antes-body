@@ -1,0 +1,552 @@
+﻿# SmartFactory-GS | ETAPA 05 | FILE01: Hyper-V, SMB, DFS Namespace, FSRM, Dedup e VSS
+# Execute no WINDOWS POWERSHELL 5.1 do HOST como Administrador.
+# Acoes: Preparar, CriarVM, ConfigurarBase, IngressarDominio, ConfigurarArquivos, Validar, TestarVSS.
+# Exige Windows Server 2025 Standard Server Core instalado manualmente antes de ConfigurarBase.
+# Preserva DC01 e FW01; nunca configura DFS Replication ou alega alta disponibilidade inexistente.
+[CmdletBinding()]
+param(
+    [ValidateSet('Preparar','CriarVM','ConfigurarBase','IngressarDominio','ConfigurarArquivos','Validar','TestarVSS')]
+    [string]$Acao = 'Preparar',
+    [string]$IsoPath = ''
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$Base = 'D:\FIAP\WINDOWS\SmartFactory-GS'
+$VM = 'VM-FILE01'
+$VMDir = Join-Path $Base '02-VMs\VM-FILE01'
+$VhdOS = Join-Path $VMDir 'VM-FILE01-OS.vhdx'
+$VhdDados = Join-Path $VMDir 'VM-FILE01-DADOS-E.vhdx'
+$VhdVSS = Join-Path $VMDir 'VM-FILE01-VSS-S.vhdx'
+$ISODir = Join-Path $Base '01-ISOs'
+$LogDir = Join-Path $Base '09-Logs-Testes'
+$DocDir = Join-Path $Base '00-Documentacao'
+$VidDir = Join-Path $Base '07-Video\Roteiros'
+$EvidDir = Join-Path $Base '06-Evidencias\05-FILE01-SMB-DFS-FSRM-VSS'
+$Log = Join-Path $LogDir '07-FILE01-SMB-DFS-FSRM-VSS-Resultado.txt'
+$Report = Join-Path $DocDir '05-FILE01-SMB-DFS-FSRM-VSS.md'
+$Video = Join-Path $VidDir 'Roteiro_Video_Etapa_6.txt'
+$Check = Join-Path $DocDir '05-FILE01-Checklist.txt'
+
+function Gravar([string]$Mensagem) {
+    $linha = ('{0} | {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'),$Mensagem)
+    $linha | Add-Content -LiteralPath $Log -Encoding UTF8
+    Write-Host $linha
+}
+function Pastas {
+    foreach ($p in @($VMDir,$LogDir,$DocDir,$VidDir,$EvidDir)) {
+        if (-not (Test-Path -LiteralPath $p)) {
+            New-Item -ItemType Directory -Path $p -Force | Out-Null
+        }
+    }
+}
+function AdminHost {
+    $who = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+    if (-not $who.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        throw 'Abra Windows PowerShell 5.1 como administrador no HOST.'
+    }
+    Import-Module Hyper-V -ErrorAction Stop
+}
+function RedeHost {
+    foreach ($name in @('VM-FW01','VM-DC01')) {
+        $g = Get-VM -Name $name -ErrorAction SilentlyContinue
+        if (-not $g -or $g.State -ne 'Running') {
+            throw "A VM $name precisa permanecer ligada nesta etapa."
+        }
+    }
+    $sw = Get-VMSwitch -Name 'SF-LAN' -ErrorAction Stop
+    if ($sw.SwitchType -ne 'Internal') { throw 'SF-LAN nao e Internal.' }
+    $fwvlan = Get-VMNetworkAdapterVlan -VMName 'VM-FW01' -VMNetworkAdapterName 'LAN' -ErrorAction Stop
+    if ($fwvlan.OperationMode -ne 'Trunk' -or $fwvlan.NativeVlanId -ne 99) {
+        throw 'Trunk da FW01 nao possui VLAN nativa 99. Verifique Etapa 03.'
+    }
+    $dnsDC = Invoke-Command -VMName 'VM-DC01' -Credential (Get-Credential -Message 'Credencial SMARTFACTORY\\Administrator do DC01 (preflight)') -ScriptBlock {
+        (Get-Service -Name NTDS -ErrorAction Stop).Status.ToString()
+    } -ErrorAction Stop
+    if ($dnsDC -notcontains 'Running') { throw 'NTDS do DC01 nao esta Running.' }
+}
+function SessaoFile {
+    $vmStatus = Get-VM -Name $VM -ErrorAction Stop
+    if ($vmStatus.State -ne 'Running') { throw 'Ligue VM-FILE01 e aguarde o Windows iniciar.' }
+    Write-Host 'Credencial do Windows Server FILE01: local antes de ingressar, SMARTFACTORY\\Administrator depois.' -ForegroundColor Cyan
+    $c = Get-Credential -Message 'Credencial ADMINISTRATIVA no VM-FILE01 (PowerShell Direct)'
+    return (New-PSSession -VMName $VM -Credential $c -ErrorAction Stop)
+}
+function OutputGuest($objs) {
+    foreach ($o in @($objs)) {
+        if ($null -ne $o) {
+            foreach ($linha in (($o | Out-String -Width 220).Trim() -split "`r?`n")) {
+                if ($linha.Trim()) { Gravar ('GUEST: '+$linha.Trim()) }
+            }
+        }
+    }
+}
+
+AdminHost
+if (-not (Test-Path -LiteralPath $Base -PathType Container)) { throw "Pasta base nao existe: $Base" }
+Pastas
+Gravar "INICIO: Acao $Acao"
+try {
+    switch ($Acao) {
+        'Preparar' {
+            RedeHost
+            $drive = Get-PSDrive -Name D -ErrorAction Stop
+            $livre = [math]::Round(($drive.Free / 1GB),1)
+            $mem = Get-CimInstance Win32_OperatingSystem
+            $memlivre = [math]::Round(($mem.FreePhysicalMemory * 1KB / 1GB),1)
+            Gravar "D: livre = $livre GB; RAM host livre = $memlivre GB"
+            if ($livre -lt 35) { throw 'D: com menos de 35 GB LIVRES. Nao crie 3 VHDX dinamicos antes de liberar espaco.' }
+            if ($memlivre -lt 3) { Write-Warning 'Host com menos de 3 GB livres. Feche apps e outras VMs antes de CriarVM.' }
+            $script:isoOK = $IsoPath
+            if (-not $isoOK) {
+                $encontrados = @(Get-ChildItem -Path $ISODir -Filter '*.iso' -File | Where-Object { $_.Name -match '(SERVER|WindowsServer)' })
+                Gravar "ISOs Windows Server encontradas: $($encontrados.Count)"
+                if ($encontrados.Count -eq 0) { throw 'Nao encontrei ISO de Windows Server em 01-ISOs.' }
+            } elseif (-not (Test-Path -LiteralPath $isoOK)) {
+                throw "ISO nao encontrada: $isoOK"
+            }
+            if (-not (Test-Path -LiteralPath $Report)) {
+@'
+# Etapa 05 - VM-FILE01 | SmartFactory-GS
+
+Status: EM IMPLANTACAO, sujeito a validacao na VM.
+
+## Escopo
+- Windows Server 2025 Standard Server Core, VM Generation 2, VLAN 20, 10.20.20.15/24.
+- 3 VHDX: sistema C: 60 GB, dados E: 500 GB, VSS S: 150 GB, todos dinamicos.
+- Laboratorio reduzido: 3 GB RAM estatica, 2 vCPU, 1 vNIC (ao contrario do sizing corporativo).
+- SMB assinatura obrigatoria e criptografia; pastas NTFS e compartilhamento Dados$.
+- AGDLP (grupos existentes no AD), quotas FSRM e file screening ativo.
+- DFS Namespace de dominio: \\smartfactory.corp\dados (um unico target FILE01).
+- VSS: diff area em S: 120 GB; seg-sex 07:00 e 12:00.
+- Data Deduplication (General Purpose, arquivos com >= 3 dias).
+- DFSR/alta disponibilidade entre FILE01 e FILE02 NAO IMPLEMENTADOS: FILE02 omitida por RAM.
+- Limites fisicos: VHDX de expansao dinamica nao reservam 710 GB de armazenamento real.
+
+## Evidencias pendentes
+- Hyper-V: VHDX, SCSI 0/1 e VLAN 20.
+- Windows Server: rede, dominio, volumes GPT e NTFS.
+- Compartilhamento Dados$, ACLs e sete departamentos.
+- Namespace DFS; FSRM quotas e file screening; dedup e tarefas VSS.
+- Testes positivos/negativos com usuarios e clientes: pendentes ate haver estacao de teste.
+
+## Fontes
+- CP-02 - secoes 20 a 37 e matriz AGDLP.
+- CP-03 - Server Core, simplificacao 1 NIC, protecao SMB e DFSR assincrono.
+'@ | Set-Content -LiteralPath $Report -Encoding UTF8
+            }
+            if (-not (Test-Path -LiteralPath $Video)) {
+@'
+Nesta etapa, implementamos o servidor de arquivos VM-FILE01 da SmartFactory usando Windows Server 2025 Standard em modo Server Core.
+
+Criamos a VM no Hyper-V, conectada a VLAN 20, com discos virtuais separados para sistema operacional, dados e copias de sombra. Depois, configuramos o endereco IP, ingressamos no dominio smartfactory.corp e instalamos as funcoes de File Server.
+
+As sete pastas departamentais receberam permissoes NTFS baseadas nos grupos AGDLP criados no Active Directory, com compartilhamento SMB protegido por assinatura e criptografia.
+
+Tambem configuramos o DFS Namespace no caminho smartfactory.corp\dados, as quotas e triagem de arquivos pelo FSRM, a desduplicacao de dados e o armazenamento de Shadow Copies no volume S, com agendamento nos dias uteis.
+
+Por fim, validamos os volumes e servicos. Como este laboratorio utiliza apenas FILE01, a redundancia com FILE02 e a replicacao DFSR permanecem documentadas, mas nao foram simuladas como concluidas.
+'@ | Set-Content -LiteralPath $Video -Encoding UTF8
+            }
+            if (-not (Test-Path -LiteralPath $Check)) {
+@'
+[ ] Preparar: FW01 e DC01 rodando, espaco livre e ISO conferidos
+[ ] VM-FILE01: Gen2, 2 vCPU, 3GB RAM, VLAN 20, 3 VHDX dinamicos
+[ ] Instalar Windows Server 2025 Standard Server Core (manual)
+[ ] ConfigurarBase: VM-FILE01 e IP 10.20.20.15/24, DNS 10.20.20.11
+[ ] IngressarDominio: smartfactory.corp e OU File_Servers
+[ ] ConfigurarArquivos: volumes E e S, roles, SMB e NTFS
+[ ] ConfigurarArquivos: Dados$, DFS Namespace e 7 links
+[ ] ConfigurarArquivos: 7 quotas FSRM, triagem ativa
+[ ] ConfigurarArquivos: dedup, VSS S: com agendamento 07/12 em dias uteis
+[ ] Validar: comandos aprovados e evidencias guardadas
+[ ] Video 06 gravado; roteiro em 07-Video\Roteiros
+[ ] Registrar limitacoes: sem FILE02, DFSR e alta disponibilidade
+'@ | Set-Content -LiteralPath $Check -Encoding UTF8
+            }
+            Gravar "PREPARACAO APROVADA. Roteiro: $Video; Relatorio: $Report"
+        }
+        'CriarVM' {
+            $sw = Get-VMSwitch -Name 'SF-LAN' -ErrorAction Stop
+            if ($sw.SwitchType -ne 'Internal') { throw 'SF-LAN incorreto.' }
+            if (Get-VM -Name $VM -ErrorAction SilentlyContinue) { throw 'VM-FILE01 JA EXISTE. Nao vou recriar nem apagar nada.' }
+            $free = (Get-PSDrive -Name D).Free / 1GB
+            if ($free -lt 35) { throw 'D: tem menos de 35 GB livres.' }
+            $iso = $IsoPath
+            if (-not $iso) {
+                $options = @(Get-ChildItem -Path $ISODir -Filter '*.iso' -File |
+                    Where-Object { $_.Name -match '(SERVER|WindowsServer)' })
+                if ($options.Count -ne 1) {
+                    throw "Ha $($options.Count) ISOs de Server. Execute CriarVM com -IsoPath 'CAMINHO_COMPLETO_DA_ISO'."
+                }
+                $iso = $options[0].FullName
+            }
+            if (-not (Test-Path -LiteralPath $iso -PathType Leaf)) { throw "ISO ausente: $iso" }
+            Gravar "ISO selecionada: $iso"
+            New-VM -Name $VM -Generation 2 -MemoryStartupBytes 3GB -SwitchName 'SF-LAN' `
+                -NewVHDPath $VhdOS -NewVHDSizeBytes 60GB -Path $VMDir -ErrorAction Stop | Out-Null
+            Set-VMProcessor -VMName $VM -Count 2
+            Set-VMMemory -VMName $VM -DynamicMemoryEnabled $false -StartupBytes 3GB
+            Set-VM -Name $VM -AutomaticStopAction ShutDown -CheckpointType Disabled
+            $n = @(Get-VMNetworkAdapter -VMName $VM)
+            if ($n.Count -ne 1) { throw 'Numero de NICs diferente de 1; conferir manualmente.' }
+            Rename-VMNetworkAdapter -VMName $VM -Name $n[0].Name -NewName 'SERVIDORES'
+            Set-VMNetworkAdapterVlan -VMName $VM -VMNetworkAdapterName 'SERVIDORES' -Access -VlanId 20
+            Set-VMNetworkAdapter -VMName $VM -VMNetworkAdapterName 'SERVIDORES' -RouterGuard On -DhcpGuard On
+            $controllers = @(Get-VMScsiController -VMName $VM | Select-Object -ExpandProperty ControllerNumber)
+            if (1 -notin $controllers) { Add-VMScsiController -VMName $VM | Out-Null }
+            foreach ($entry in @(@{Path=$VhdDados;Size=500GB;Location=0},@{Path=$VhdVSS;Size=150GB;Location=1})) {
+                if (Test-Path -LiteralPath $entry.Path) { throw "VHDX preexistente: $($entry.Path)" }
+                New-VHD -Path $entry.Path -Dynamic -SizeBytes $entry.Size -ErrorAction Stop | Out-Null
+                Add-VMHardDiskDrive -VMName $VM -ControllerType SCSI `
+                    -ControllerNumber 1 -ControllerLocation $entry.Location -Path $entry.Path -ErrorAction Stop
+            }
+            $dvd = Add-VMDvdDrive -VMName $VM -Path $iso -Passthru -ErrorAction Stop
+            Set-VMFirmware -VMName $VM -EnableSecureBoot On -SecureBootTemplate 'MicrosoftWindows' `
+                -FirstBootDevice $dvd
+            Gravar 'VM CRIADA: 2vCPU, 3GB estaticos, 1 NIC VLAN20, OS=60GB E=500GB S=150GB VHDX dinamicos.'
+            Gravar 'INSTALE manualmente Windows Server 2025 Standard (SEM Desktop Experience) e defina senha Administrator.'
+        }
+        'ConfigurarBase' {
+            $s = SessaoFile
+            try {
+                $out = Invoke-Command -Session $s -ScriptBlock {
+                    $ErrorActionPreference = 'Stop'
+                    $net = @(Get-NetAdapter | Where-Object Status -eq 'Up')
+                    if ($net.Count -ne 1) { throw "Esperada 1 NIC ativa, encontradas $($net.Count)." }
+                    $nic = $net[0].InterfaceAlias
+                    Get-NetIPAddress -InterfaceAlias $nic -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                        Where-Object { $_.PrefixOrigin -eq 'Dhcp' } |
+                        ForEach-Object { Remove-NetIPAddress -InterfaceAlias $nic -IPAddress $_.IPAddress -Confirm:$false -ErrorAction Stop }
+                    Set-NetIPInterface -InterfaceAlias $nic -AddressFamily IPv4 -Dhcp Disabled
+                    $found = Get-NetIPAddress -InterfaceAlias $nic -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                        Where-Object IPAddress -eq '10.20.20.15'
+                    if (-not $found) {
+                        New-NetIPAddress -InterfaceAlias $nic -IPAddress '10.20.20.15' -PrefixLength 24 `
+                            -DefaultGateway '10.20.20.1' -ErrorAction Stop | Out-Null
+                    }
+                    Set-DnsClientServerAddress -InterfaceAlias $nic -ServerAddresses @('10.20.20.11')
+                    Set-TimeZone -Id 'E. South America Standard Time'
+                    $rename = $env:COMPUTERNAME -ne 'VM-FILE01'
+                    if ($rename) { Rename-Computer -NewName 'VM-FILE01' -Force -ErrorAction Stop }
+                    $dns = Resolve-DnsName -Name 'vm-dc01.smartfactory.corp' -Server '10.20.20.11' -Type A -ErrorAction Stop
+                    $ip = @($dns | Where-Object IPAddress -eq '10.20.20.11')
+                    if ($ip.Count -eq 0) { throw 'DNS de DC01 nao retornou 10.20.20.11.' }
+                    "IP=10.20.20.15/24; Gateway=10.20.20.1; DNS=10.20.20.11; RENOMEADO=$rename"
+                    if ($rename) {
+                        shutdown.exe /r /t 12 /c 'SmartFactory: renomear VM-FILE01' | Out-Null
+                        'REINICIO AGENDADO EM 12 SEGUNDOS; AGUARDE O LOGIN DO WINDOWS.'
+                    }
+                } -ErrorAction Stop
+                OutputGuest $out
+            } finally { Remove-PSSession $s -ErrorAction SilentlyContinue }
+            Gravar 'ConfigurarBase concluido. Se houve renomeacao, aguarde o reboot antes de ingressar no dominio.'
+        }
+        'IngressarDominio' {
+            $s = SessaoFile
+            try {
+                Write-Host 'Informe credenciais para INSERIR FILE01 no AD (ex.: SMARTFACTORY\Administrator).' -ForegroundColor Cyan
+                $domainCred = Get-Credential -Message 'Credencial AD com privilegio de ingressar maquinas no dominio'
+                $out = Invoke-Command -Session $s -ArgumentList $domainCred -ScriptBlock {
+                    param($dcred)
+                    $ErrorActionPreference = 'Stop'
+                    if ($env:COMPUTERNAME -ne 'VM-FILE01') { throw 'Hostname nao e VM-FILE01; execute ConfigurarBase e reinicie.' }
+                    $c = Get-CimInstance Win32_ComputerSystem
+                    if ($c.PartOfDomain) {
+                        if ($c.Domain -ne 'smartfactory.corp') { throw "Servidor ja ingressou em outro dominio: $($c.Domain)" }
+                        'DOMINIO JA CONFIGURADO: smartfactory.corp.'
+                        return
+                    }
+                    $ou = 'OU=File_Servers,OU=Servidores_Membros,OU=Infraestrutura,DC=smartfactory,DC=corp'
+                    Add-Computer -DomainName 'smartfactory.corp' -Credential $dcred -OUPath $ou -ErrorAction Stop
+                    'INGRESSO APROVADO. Reinicio agendado.'
+                    shutdown.exe /r /t 12 /c 'SmartFactory: ingresso no dominio' | Out-Null
+                } -ErrorAction Stop
+                OutputGuest $out
+            } finally { Remove-PSSession $s -ErrorAction SilentlyContinue }
+            Gravar 'Aguarde o reinicio do FILE01; prox. credencial: SMARTFACTORY\Administrator.'
+        }
+        'ConfigurarArquivos' {
+            $s = SessaoFile
+            try {
+                $out = Invoke-Command -Session $s -ScriptBlock {
+                    $ErrorActionPreference = 'Stop'
+                    $cs = Get-CimInstance Win32_ComputerSystem
+                    if ($cs.Domain -ne 'smartfactory.corp' -or -not $cs.PartOfDomain) {
+                        throw 'FILE01 nao esta ingressado ao dominio smartfactory.corp.'
+                    }
+                    if ($env:COMPUTERNAME -ne 'VM-FILE01') { throw 'Nome de host inesperado.' }
+                    $d = @('FS-FileServer','FS-DFS-Namespace','FS-Resource-Manager','FS-Data-Deduplication','RSAT-AD-PowerShell')
+                    $resultado = Install-WindowsFeature -Name $d -IncludeManagementTools -ErrorAction Stop
+                    if (-not $resultado.Success) { throw 'Falha na instalacao das funcoes de File Server.' }
+                    if ($resultado.RestartNeeded -eq 'Yes') {
+                        throw 'Reinicio requerido pela instalacao de roles; reinicie FILE01 e execute ConfigurarArquivos novamente.'
+                    }
+                    Import-Module ActiveDirectory, Dfsn, FileServerResourceManager, Deduplication -ErrorAction Stop
+                    # Discos identificados por capacidade, nunca apenas pelo numero do disco.
+                    $dataDisk = @(Get-Disk | Where-Object { $_.Size -gt 499GB -and $_.Size -lt 501GB })
+                    $vssDisk = @(Get-Disk | Where-Object { $_.Size -gt 149GB -and $_.Size -lt 151GB })
+                    if ($dataDisk.Count -ne 1 -or $vssDisk.Count -ne 1) {
+                        throw 'Discos E (500GB) e S (150GB) nao encontrados de forma inequivoca.'
+                    }
+                    function PrepararDisco($disk,$letra,$label,$cluster) {
+                        $existing = Get-Volume -DriveLetter $letra -ErrorAction SilentlyContinue
+                        if ($existing) {
+                            $partition = Get-Partition -DriveLetter $letra -ErrorAction Stop
+                            if ($partition.DiskNumber -ne $disk.Number -or $existing.FileSystem -ne 'NTFS') {
+                                throw "A letra $letra ja pertence a outro disco ou nao e NTFS."
+                            }
+                            return
+                        }
+                        if ($disk.PartitionStyle -ne 'RAW') {
+                            throw "Disco numero $($disk.Number) ja particionado e nao e $letra. Nao vou formatar."
+                        }
+                        Initialize-Disk -Number $disk.Number -PartitionStyle GPT -ErrorAction Stop
+                        New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter $letra -ErrorAction Stop | Out-Null
+                        Format-Volume -DriveLetter $letra -FileSystem NTFS -AllocationUnitSize $cluster `
+                            -NewFileSystemLabel $label -Confirm:$false -Force -ErrorAction Stop | Out-Null
+                    }
+                    PrepararDisco $dataDisk[0] 'E' 'SF_DADOS' 65536
+                    PrepararDisco $vssDisk[0] 'S' 'SF_VSS' 4096
+                    $pathDados = 'E:\Dados'
+                    New-Item -Path $pathDados -ItemType Directory -Force | Out-Null
+                    $departamentos = @('Administracao','Recursos_Humanos','Financeiro','Engenharia','Producao','Logistica','TI')
+                    $groups = @{
+                        'Administracao'='Administracao'; 'Recursos_Humanos'='RH';
+                        'Financeiro'='Financeiro'; 'Engenharia'='Engenharia';
+                        'Producao'='Producao'; 'Logistica'='Logistica'; 'TI'='TI'
+                    }
+                    $daSid = (Get-ADGroup -Identity 'Domain Admins' -ErrorAction Stop).SID
+                    $systemSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-18')
+                    $adminsSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')
+                    $authSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-11')
+                    $inherit = [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit
+                    $prop = [Security.AccessControl.PropagationFlags]::None
+                    $allow = [Security.AccessControl.AccessControlType]::Allow
+                    function AclRestrita([string]$path,[array]$extra) {
+                        $acl = Get-Acl -LiteralPath $path -ErrorAction Stop
+                        $acl.SetAccessRuleProtection($true,$false)
+                        foreach ($rule in @($acl.Access)) { [void]$acl.RemoveAccessRuleSpecific($rule) }
+                        $rules = @(
+                            @{sid=$systemSid;right=[Security.AccessControl.FileSystemRights]::FullControl},
+                            @{sid=$adminsSid;right=[Security.AccessControl.FileSystemRights]::FullControl},
+                            @{sid=$daSid;right=[Security.AccessControl.FileSystemRights]::FullControl}
+                        ) + $extra
+                        foreach ($r in $rules) {
+                            $ar = [Security.AccessControl.FileSystemAccessRule]::new($r.sid,$r.right,$inherit,$prop,$allow)
+                            $acl.AddAccessRule($ar)
+                        }
+                        Set-Acl -LiteralPath $path -AclObject $acl -ErrorAction Stop
+                    }
+                    AclRestrita $pathDados @()
+                    foreach ($dep in $departamentos) {
+                        $pathDep = Join-Path $pathDados $dep
+                        New-Item -Path $pathDep -ItemType Directory -Force | Out-Null
+                        $suffix = $groups[$dep]
+                        $modify = "DL_FS_${suffix}_Modificar"
+                        $read = "DL_FS_${suffix}_Leitura"
+                        $sidModify = (Get-ADGroup -Identity $modify -ErrorAction Stop).SID
+                        $sidRead = (Get-ADGroup -Identity $read -ErrorAction Stop).SID
+                        AclRestrita $pathDep @(
+                            @{sid=$sidModify;right=[Security.AccessControl.FileSystemRights]::Modify},
+                            @{sid=$sidRead;right=[Security.AccessControl.FileSystemRights]::ReadAndExecute}
+                        )
+                    }
+                    Set-SmbServerConfiguration -RequireSecuritySignature $true -EnableSMB1Protocol $false `
+                        -EncryptData $true -RejectUnencryptedAccess $true -Force -Confirm:$false -ErrorAction Stop | Out-Null
+                    $daName = 'SMARTFACTORY\Domain Admins'
+                    $authName = 'NT AUTHORITY\Authenticated Users'
+                    $shareDados = Get-SmbShare -Name 'Dados$' -ErrorAction SilentlyContinue
+                    if (-not $shareDados) {
+                        New-SmbShare -Name 'Dados$' -Path $pathDados -ChangeAccess $authName `
+                            -FullAccess $daName -EncryptData $true -FolderEnumerationMode AccessBased -ErrorAction Stop | Out-Null
+                    } else {
+                        if ($shareDados.Path -ne $pathDados) { throw 'Dados$ ja existe e aponta para outro caminho.' }
+                        Set-SmbShare -Name 'Dados$' -EncryptData $true -FolderEnumerationMode AccessBased -Force -ErrorAction Stop | Out-Null
+                    }
+                    $rootDisk = 'C:\DFSRoots\dados'
+                    New-Item -Path $rootDisk -ItemType Directory -Force | Out-Null
+                    AclRestrita $rootDisk @(@{sid=$authSid;right=[Security.AccessControl.FileSystemRights]::ReadAndExecute})
+                    $rootShare = Get-SmbShare -Name 'dados' -ErrorAction SilentlyContinue
+                    if (-not $rootShare) {
+                        New-SmbShare -Name 'dados' -Path $rootDisk -ReadAccess $authName `
+                            -FullAccess $daName -FolderEnumerationMode AccessBased -ErrorAction Stop | Out-Null
+                    } elseif ($rootShare.Path -ne $rootDisk) {
+                        throw 'Share dados ja existe com caminho diferente.'
+                    }
+                    $dfsPath = '\\smartfactory.corp\dados'
+                    $targetRoot = '\\VM-FILE01\dados'
+                    if (-not (Get-DfsnRoot -Path $dfsPath -ErrorAction SilentlyContinue)) {
+                        New-DfsnRoot -Path $dfsPath -TargetPath $targetRoot -Type DomainV2 `
+                            -EnableAccessBasedEnumeration $true -ErrorAction Stop | Out-Null
+                    }
+                    foreach ($dep in $departamentos) {
+                        $path = "${dfsPath}\$dep"
+                        $target = ('\\{0}\Dados$\{1}' -f 'VM-FILE01',$dep)
+                        if (-not (Get-DfsnFolder -Path $path -ErrorAction SilentlyContinue)) {
+                            New-DfsnFolder -Path $path -TargetPath $target -ErrorAction Stop | Out-Null
+                        }
+                    }
+                    $quotaSet = @(
+                        @{n='Engenharia';s=400GB;soft=$true;p=@(85,95)},
+                        @{n='Administracao';s=150GB;soft=$false;p=@(80)},
+                        @{n='Financeiro';s=150GB;soft=$false;p=@(80)},
+                        @{n='Recursos_Humanos';s=100GB;soft=$false;p=@(85)},
+                        @{n='Logistica';s=100GB;soft=$false;p=@(85)},
+                        @{n='Producao';s=100GB;soft=$false;p=@(85)},
+                        @{n='TI';s=150GB;soft=$true;p=@(90)}
+                    )
+                    foreach ($q in $quotaSet) {
+                        $p = Join-Path $pathDados $q.n
+                        $exist = Get-FsrmQuota -Path $p -ErrorAction SilentlyContinue
+                        if (-not $exist) {
+                            $alerts = @()
+                            foreach ($pct in $q.p) {
+                                $event = New-FsrmAction -Type Event -EventType Warning -EventText ("SmartFactory: quota de {0} atingiu {1}% do limite." -f $q.n, $pct)
+                                $alerts += New-FsrmQuotaThreshold -Percentage $pct -Action $event
+                            }
+                            $paramQuota = @{ Path=$p; Size=$q.s; Threshold=$alerts;
+                                Description=('SmartFactory '+$q.n); ErrorAction='Stop' }
+                            if ($q.soft) { $paramQuota.SoftLimit = $true }
+                            New-FsrmQuota @paramQuota | Out-Null
+                        }
+                    }
+                    $fileGroup = 'SF_Extensoes_Bloqueadas'
+                    $patterns = @('*.exe','*.bat','*.cmd','*.ps1','*.vbs','*.msi',
+                        '*.mp3','*.mp4','*.avi','*.mkv','*.crypto','*.locky','*.enc')
+                    if (-not (Get-FsrmFileGroup -Name $fileGroup -ErrorAction SilentlyContinue)) {
+                        New-FsrmFileGroup -Name $fileGroup -IncludePattern $patterns `
+                            -Description 'Arquivos bloqueados pela politica SmartFactory' -ErrorAction Stop | Out-Null
+                    }
+                    if (-not (Get-FsrmFileScreen -Path $pathDados -ErrorAction SilentlyContinue)) {
+                        New-FsrmFileScreen -Path $pathDados -IncludeGroup $fileGroup -Active `
+                            -Description 'Bloqueio ativo de executaveis, midias e ransomware' -ErrorAction Stop | Out-Null
+                    }
+                    if (-not ((Get-DedupVolume -Volume 'E:' -ErrorAction SilentlyContinue) | Where-Object Enabled)) {
+                        Enable-DedupVolume -Volume 'E:' -UsageType Default -ErrorAction Stop | Out-Null
+                    }
+                    Set-DedupVolume -Volume 'E:' -MinimumFileAgeDays 3 -ErrorAction Stop | Out-Null
+                    $vss = (& vssadmin.exe list shadowstorage /for=E: 2>&1 | Out-String)
+                    if ($LASTEXITCODE -ne 0 -or $vss -notmatch 'S:') {
+                        $outVss = & vssadmin.exe add shadowstorage /for=E: /on=S: /maxsize=120GB 2>&1
+                        if ($LASTEXITCODE -ne 0) { throw "Erro vssadmin add: $($outVss | Out-String)" }
+                    }
+                    $taskName = 'SF_FILE01_VSS_DiasUteis'
+                    if (-not (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue)) {
+                        $action = New-ScheduledTaskAction -Execute "$env:windir\System32\vssadmin.exe" -Argument 'create shadow /for=E:'
+                        $dias = @('Monday','Tuesday','Wednesday','Thursday','Friday')
+                        $t1 = New-ScheduledTaskTrigger -Weekly -DaysOfWeek $dias -At '07:00'
+                        $t2 = New-ScheduledTaskTrigger -Weekly -DaysOfWeek $dias -At '12:00'
+                        $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+                        Register-ScheduledTask -TaskName $taskName -Action $action `
+                            -Trigger @($t1,$t2) -Principal $principal -ErrorAction Stop | Out-Null
+                    }
+                    Register-DnsClient
+                    'CONFIGURACAO FILE SERVER CONCLUIDA: E:, S:, SMB, DFSN, AGDLP, 7 quotas, tela ativa, dedup e VSS.'
+                    'DFSR NAO INSTALADO: nao existe FILE02 neste laboratorio.'
+                } -ErrorAction Stop
+                OutputGuest $out
+            } finally { Remove-PSSession $s -ErrorAction SilentlyContinue }
+            Gravar 'CONFIGURACAO DO FILE SERVER FINALIZADA. Execute -Acao Validar.'
+        }
+        'TestarVSS' {
+            $livre = (Get-PSDrive -Name D -ErrorAction Stop).Free / 1GB
+            if ($livre -lt 15) { throw 'D: tem menos de 15 GB livres. Nao crie snapshots VSS.' }
+            $s = SessaoFile
+            try {
+                $out = Invoke-Command -Session $s -ScriptBlock {
+                    $ErrorActionPreference = 'Stop'
+                    $volE = Get-Volume -DriveLetter E -ErrorAction Stop
+                    $volS = Get-Volume -DriveLetter S -ErrorAction Stop
+                    if ($volE.FileSystem -ne 'NTFS' -or $volS.FileSystem -ne 'NTFS') { throw 'Volumes E e S precisam ser NTFS.' }
+                    $before = (& vssadmin.exe list shadows /for=E: 2>&1 | Out-String)
+                    $created = (& vssadmin.exe create shadow /for=E: 2>&1 | Out-String)
+                    if ($LASTEXITCODE -ne 0) { throw "VSS nao criou a shadow copy: $created" }
+                    $after = (& vssadmin.exe list shadows /for=E: 2>&1 | Out-String)
+                    if ($after -notmatch 'Shadow Copy ID') {
+                        throw 'VSS nao apresentou nenhuma copia de sombra apos o comando.'
+                    }
+                    'VSS: COPIA DE SOMBRA CRIADA EM E:. Diff area configurada em S:.'
+                    $created.Trim()
+                    'Atencao: snapshot local nao substitui backup externo.'
+                } -ErrorAction Stop
+                OutputGuest $out
+            } finally { Remove-PSSession $s -ErrorAction SilentlyContinue }
+            Gravar 'TESTE VSS CONCLUIDO; verificar espaco fisico D: apos snapshot.'
+        }
+        'Validar' {
+            $vmObj = Get-VM -Name $VM -ErrorAction Stop
+            if ($vmObj.State -ne 'Running') { throw 'VM-FILE01 precisa estar ligada.' }
+            $vlan = Get-VMNetworkAdapterVlan -VMName $VM -VMNetworkAdapterName 'SERVIDORES'
+            if ($vlan.OperationMode -ne 'Access' -or $vlan.AccessVlanId -ne 20) { throw 'VLAN Access 20 incorreta.' }
+            $disks = @(Get-VMHardDiskDrive -VMName $VM)
+            if ($disks.Count -ne 3) { throw "Esperados 3 VHDX, encontrados $($disks.Count)." }
+            $controllers = @(Get-VMScsiController -VMName $VM)
+            if ($controllers.Count -lt 2) { throw 'Esperados 2 controladores SCSI.' }
+            if ($vmObj.MemoryStartup -ne 3GB -or $vmObj.DynamicMemoryEnabled) {
+                throw 'VM-FILE01 deveria ter 3GB estaticos.'
+            }
+            $s = SessaoFile
+            try {
+                $out = Invoke-Command -Session $s -ScriptBlock {
+                    $ErrorActionPreference = 'Stop'
+                    Import-Module ActiveDirectory,Dfsn,FileServerResourceManager,Deduplication -ErrorAction Stop
+                    $errors = New-Object 'System.Collections.Generic.List[string]'
+                    function Testar($cond,[string]$what) {
+                        if ($cond) { "OK: $what" } else { $errors.Add($what); "FALHA: $what" }
+                    }
+                    Testar ($env:COMPUTERNAME -eq 'VM-FILE01') 'Hostname VM-FILE01'
+                    $os = Get-CimInstance Win32_OperatingSystem
+                    Testar ([int]$os.BuildNumber -ge 26100) 'Windows Server 2025 (build >= 26100)'
+                    $installType = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion').InstallationType
+                    Testar ($installType -eq 'Server Core') 'Instalacao Server Core'
+                    Testar ((Get-CimInstance Win32_ComputerSystem).Domain -eq 'smartfactory.corp') 'Ingresso AD'
+                    Testar ([bool](Get-NetIPAddress -IPAddress '10.20.20.15' -ErrorAction SilentlyContinue)) 'IP 10.20.20.15'
+                    Testar ([bool]((Get-Volume -DriveLetter E -ErrorAction SilentlyContinue) | Where-Object { $_.FileSystem -eq 'NTFS' -and $_.AllocationUnitSize -eq 65536 })) 'Volume E: NTFS, cluster 64KB'
+                    Testar ([bool]((Get-Volume -DriveLetter S -ErrorAction SilentlyContinue) | Where-Object { $_.FileSystem -eq 'NTFS' })) 'Volume S: NTFS'
+                    $d = @('FS-FileServer','FS-DFS-Namespace','FS-Resource-Manager','FS-Data-Deduplication','RSAT-AD-PowerShell')
+                    foreach($f in $d){ Testar ((Get-WindowsFeature -Name $f).InstallState -eq 'Installed') "Role $f" }
+                    $share = Get-SmbShare -Name 'Dados$' -ErrorAction SilentlyContinue
+                    Testar ([bool]($share -and $share.Path -eq 'E:\Dados' -and $share.EncryptData)) 'Dados$ SMB criptografado'
+                    $smb = Get-SmbServerConfiguration
+                    Testar ($smb.RequireSecuritySignature -and $smb.EncryptData -and (-not $smb.EnableSMB1Protocol)) 'SMB assinado, criptografado e SMB1 desativado'
+                    $acShare = @(Get-SmbShareAccess -Name 'Dados$' -ErrorAction SilentlyContinue)
+                    Testar (@($acShare | Where-Object { $_.AccountName -match 'Authenticated Users' -and $_.AccessRight -eq 'Change' }).Count -gt 0) 'Share Dados$: Authenticated Users Change'
+                    foreach ($dep in @('Administracao','Recursos_Humanos','Financeiro','Engenharia','Producao','Logistica','TI')) {
+                        $suf = if ($dep -eq 'Recursos_Humanos') { 'RH' } else { $dep }
+                        $sidMod = (Get-ADGroup -Identity "DL_FS_${suf}_Modificar").SID.Value
+                        $aclSids = @((Get-Acl -LiteralPath "E:\Dados\$dep").Access | ForEach-Object {
+                            try { $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value }
+                            catch { $_.IdentityReference.Value }
+                        })
+                        Testar ($sidMod -in $aclSids) "NTFS AGDLP $dep"
+                    }
+                    Testar ([bool](Get-DfsnRoot -Path '\\smartfactory.corp\dados' -ErrorAction SilentlyContinue)) 'DFS Namespace'
+                    $deps = @('Administracao','Recursos_Humanos','Financeiro','Engenharia','Producao','Logistica','TI')
+                    foreach ($dep in $deps) {
+                        Testar ([bool](Get-DfsnFolder -Path "\\smartfactory.corp\dados\$dep" -ErrorAction SilentlyContinue)) "DFS $dep"
+                        Testar ([bool](Get-FsrmQuota -Path "E:\Dados\$dep" -ErrorAction SilentlyContinue)) "Quota $dep"
+                    }
+                    Testar ([bool]((Get-FsrmFileScreen -Path 'E:\Dados' -ErrorAction SilentlyContinue) | Where-Object Active)) 'FSRM File Screen ativo'
+                    Testar ([bool]((Get-DedupVolume -Volume 'E:' -ErrorAction SilentlyContinue) | Where-Object Enabled)) 'Data Deduplication habilitada'
+                    Testar ([bool](Get-ScheduledTask -TaskName 'SF_FILE01_VSS_DiasUteis' -ErrorAction SilentlyContinue)) 'Agendamento VSS'
+                    $vss = (& vssadmin.exe list shadowstorage /for=E: 2>&1 | Out-String)
+                    Testar ($vss -match 'S:') 'Shadow Copy diff area em S:'
+                    $dns = Resolve-DnsName 'vm-file01.smartfactory.corp' -Server 10.20.20.11 -Type A -ErrorAction SilentlyContinue
+                    Testar (@($dns | Where-Object IPAddress -eq '10.20.20.15').Count -gt 0) 'DNS A FILE01'
+                    "RESULTADO: $($errors.Count) falha(s)"
+                    if ($errors.Count -gt 0) { throw "Falhou: $($errors -join ', ')" }
+                    'VALIDACAO AUTOMATIZADA APROVADA. Testes reais de usuarios/SMB e recuperacao VSS ainda requerem evidencias.'
+                } -ErrorAction Stop
+                OutputGuest $out
+            } finally { Remove-PSSession $s -ErrorAction SilentlyContinue }
+            Gravar 'VALIDACAO HOST + GUEST APROVADA. Guarde capturas e grave video 06.'
+            Add-Content -LiteralPath $Report -Encoding UTF8 -Value "`n## Validacao automatizada $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n- Hyper-V e Windows Server: APROVADOS.`n- Testes de login efetivo de usuarios, SMB e restore VSS: PENDENTES ate executar com cliente e arquivos de teste.`n"
+        }
+    }
+    Gravar "FIM: Acao $Acao"
+} catch {
+    Gravar ("ERRO na Acao {0}: {1}" -f $Acao,$_.Exception.Message)
+    throw
+}
+

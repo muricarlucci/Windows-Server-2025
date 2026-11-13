@@ -1,0 +1,412 @@
+﻿# SmartFactory-GS | Etapa 08 | CLI-ADM01, Windows 11, DHCP, DNS e dominio
+# Execute no Windows PowerShell 5.1 do HOST, como Administrador.
+# Sequencia: Preparar -> CriarVM -> instalar Windows 11 Pro -> ConfigurarBase
+# -> CriarUsuarioTeste -> IngressarDominio -> Validar.
+# NAO altera FW01/DC01, nao desliga VMs e nao executa bateria final de testes.
+[CmdletBinding()]
+param(
+    [ValidateSet('Preparar','CriarVM','ConfigurarBase','CriarUsuarioTeste','IngressarDominio','Validar')]
+    [string]$Acao='Preparar',
+    [string]$IsoPath=''
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+$Base='D:\FIAP\WINDOWS\SmartFactory-GS'
+$VM='CLI-ADM01'
+$VMDir=Join-Path $Base '02-VMs\CLI-ADM01'
+$VhdOS=Join-Path $VMDir 'CLI-ADM01-WIN11-OS.vhdx'
+$IsoDir=Join-Path $Base '01-ISOs'
+$Log=Join-Path $Base '09-Logs-Testes\10-CLI-ADM01-Windows11-Dominio-DHCP-Resultado.txt'
+$Relatorio=Join-Path $Base '00-Documentacao\08-CLI-ADM01-Windows11-Dominio-DHCP.md'
+$Checklist=Join-Path $Base '00-Documentacao\08-CLI-ADM01-Checklist.txt'
+$Roteiro=Join-Path $Base '07-Video\Roteiros\Roteiro_Video_Etapa_9.txt'
+$Evidencias=Join-Path $Base '06-Evidencias\08-CLI-ADM01-Windows11-Dominio-DHCP'
+$UserTeste='lab.adm01'
+$OuComputador='OU=Computadores,OU=Administracao,OU=SmartFactory,DC=smartfactory,DC=corp'
+$OuUsuario='OU=Usuarios,OU=Administracao,OU=SmartFactory,DC=smartfactory,DC=corp'
+
+function Registrar([string]$Mensagem) {
+    $linha=('{0} | {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'),$Mensagem)
+    Add-Content -LiteralPath $Log -Encoding UTF8 -Value $linha
+    Write-Host $linha
+}
+function VerificarHost {
+    if ($PSVersionTable.PSVersion.Major -ne 5) {
+        throw 'Use Windows PowerShell 5.1 (nao PowerShell 7).'
+    }
+    $id=[Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal=[Security.Principal.WindowsPrincipal]::new($id)
+    if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        throw 'Abra o Windows PowerShell 5.1 COMO ADMINISTRADOR no host.'
+    }
+    if (-not (Test-Path -LiteralPath $Base -PathType Container)) {
+        throw "Diretorio SmartFactory-GS inexistente: $Base"
+    }
+    Import-Module Hyper-V -ErrorAction Stop
+    foreach ($p in @($VMDir,(Split-Path $Log),(Split-Path $Relatorio),
+                     (Split-Path $Roteiro),$Evidencias)) {
+        if (-not (Test-Path -LiteralPath $p)) {
+            New-Item -Path $p -ItemType Directory -Force | Out-Null
+        }
+    }
+}
+function ExigirLigada([string]$Nome) {
+    $v=Get-VM -Name $Nome -ErrorAction SilentlyContinue
+    if (-not $v) { throw "$Nome nao existe no Hyper-V." }
+    if ($v.State -ne 'Running') {
+        throw "$Nome deve estar ligada (Running); estado atual: $($v.State)."
+    }
+}
+function VerificarVMs([bool]$ExigirCliente) {
+    foreach ($nome in @('VM-FW01','VM-DC01')) { ExigirLigada $nome }
+    foreach ($nome in @('VM-FILE01','VM-WEB01','VM-BKP01')) {
+        $v=Get-VM -Name $nome -ErrorAction SilentlyContinue
+        if ($v -and $v.State -ne 'Off') {
+            throw "$nome deve estar desligada para economizar RAM. Use Stop-VM -Name '$nome' -Shutdown e aguarde Off."
+        }
+    }
+    $sw=Get-VMSwitch -Name 'SF-LAN' -ErrorAction Stop
+    if ($sw.SwitchType -ne 'Internal') { throw 'SF-LAN nao e switch Internal.' }
+    if ($ExigirCliente) { ExigirLigada $VM }
+}
+function ObterCredencialCliente {
+    ExigirLigada $VM
+    return (Get-Credential -Message 'Credenciais administrativas do CLI-ADM01 (antes do dominio: administrador LOCAL; depois: SMARTFACTORY\Administrator)')
+}
+function EnviarSaida($dados) {
+    $texto=$dados | Out-String -Width 240
+    foreach ($linha in ($texto -split "`r?`n")) {
+        if ($linha.Trim().Length -gt 0) { Registrar ('CONVIDADO | ' + $linha.Trim()) }
+    }
+}
+function CriarDocumentos {
+    if (-not (Test-Path -LiteralPath $Relatorio)) {
+@'
+# SmartFactory-GS — Etapa 08: CLI-ADM01 / Windows 11
+
+Status: EM EXECUCAO. Somente marcar como concluida apos validacao real.
+
+## Escopo e arquitetura
+- Cliente comum de Administracao, NAO uma PAW administrativa.
+- Windows 11 Pro, Hyper-V Gen2, 2 vCPU, TPM virtual, Secure Boot, VHDX dinamico de 80 GB.
+- RAM dinamica com minimo/inicial de 4 GB e maximo de 6 GB; nao reduzir abaixo do minimo oficial.
+- SF-LAN, adaptador CLIENTES em Access VLAN 30; DHCP obrigatorio (sem IP estatico).
+- IP previsto entre 10.20.30.21 e 10.20.30.254, gateway 10.20.30.1, DNS 10.20.20.11.
+- DHCP Relay na FW01 -> DHCP no DC01; dominio smartfactory.corp.
+- OU: Computadores > Administracao > SmartFactory.
+- Usuario de laboratorio comum: lab.adm01, membro de GG_Administracao, sem Domain Admins.
+
+## Dependencias e reducao
+- Necessario durante esta etapa: VM-FW01 + VM-DC01 + CLI-ADM01.
+- Desligar FILE01, WEB01, BKP01 para reduzir consumo de memoria.
+- DC01 ja utiliza RAM dinamica; nao alterar preventivamente.
+- Acesso efetivo a SMB, DFS, IIS, Kerberos SSO e testes de bloqueio serao demonstrados na bateria final.
+- Windows 11 Home nao pode ingressar no dominio; escolher Pro na instalacao.
+
+## Evidencias
+- VM: Gen2, TPM, Secure Boot, adaptador VLAN 30, memoria e disco.
+- DHCP: IP da faixa, gateway, DNS e lease no DC01.
+- Registros DNS SRV e resolucao do DC.
+- Conta lab.adm01 no grupo GG_Administracao, sem privilegios de dominio.
+- Cliente ingressado em smartfactory.corp na OU esperada.
+- Test-ComputerSecureChannel = True.
+- Login interativo SMARTFACTORY\lab.adm01, quando realizado.
+- Roteiro do video 09, capturas e log 10-CLI-ADM01-Windows11-Dominio-DHCP-Resultado.txt.
+'@ | Set-Content -LiteralPath $Relatorio -Encoding UTF8
+    }
+    if (-not (Test-Path -LiteralPath $Checklist)) {
+@'
+[ ] FW01 e DC01 Running; FILE01, WEB01, BKP01 Off
+[ ] Preparar conferiu RAM do host e DC01
+[ ] CriarVM: Windows 11 Pro, Gen2, Secure Boot e vTPM
+[ ] 2 vCPU, 80 GB dinamico, RAM dinamica minimo/inicial 4 GB
+[ ] Adaptador CLIENTES em Access VLAN 30
+[ ] Instalacao limpa Windows 11 Pro finalizada com conta local
+[ ] ConfigurarBase: DHCP entrega 10.20.30.21-254; gateway e DNS corretos
+[ ] CriarUsuarioTeste: lab.adm01 nao administrativo no AD
+[ ] IngressarDominio: smartfactory.corp; OU Computadores/Administracao
+[ ] Validar: canal seguro do dominio, DHCP, DNS e AD
+[ ] Login interativo com SMARTFACTORY\lab.adm01 (evidencia manual)
+[ ] Evidencias e video 09 salvos; nenhuma senha mostrada
+[ ] Testes finais SMB/DFS/IIS/ACL e Kerberos real reservados para a fase geral
+'@ | Set-Content -LiteralPath $Checklist -Encoding UTF8
+    }
+    if (-not (Test-Path -LiteralPath $Roteiro)) {
+@'
+Nesta etapa, implementamos a primeira estacao de trabalho da SmartFactory, a CLI-ADM01. Ao contrario dos servidores de infraestrutura, ela representa um computador comum do departamento de Administracao, ligado a VLAN 30. A principal funcao desta maquina e comprovar o funcionamento do DHCP, do DNS corporativo e do ingresso no Active Directory, alem de preparar os futuros testes de acesso a arquivos e intranet.
+
+Comecamos verificando o estado do ambiente. Como o computador hospedeiro possui apenas dezesseis gigabytes de RAM, mantivemos o firewall FW01 e o controlador de dominio DC01 ligados, e desligamos FILE01, WEB01 e BKP01. O DC01 permaneceu com memoria dinamica, sem alteracoes. Em seguida, executamos a preparacao do script, que conferiu as maquinas essenciais, o switch SF-LAN e os recursos disponiveis.
+
+Na criacao da CLI-ADM01, o PowerShell provisionou uma maquina virtual Hyper-V de Geracao 2, com duas CPUs virtuais, disco VHDX dinamico de oitenta gigabytes e memoria dinamica iniciando com quatro gigabytes. Configuramos Secure Boot e TPM virtual, requisitos do Windows 11, e conectamos o adaptador ao switch SF-LAN em modo Access, na VLAN 30. Tambem impedimos que o cliente anunciasse servicos DHCP ou roteamento indevidos.
+
+Depois instalamos o Windows 11 Pro pela ISO e criamos a conta administrativa local. Com o sistema pronto, utilizamos PowerShell Direct, permitindo executar comandos no convidado sem precisar habilitar WinRM nem abrir portas administrativas entre as VLANs. A automacao definiu o nome CLI-ADM01 e habilitou DHCP e DNS automaticos. O computador solicitou um endereco ao firewall, que encaminhou o pedido ao servidor DHCP do DC01. Conferimos a faixa dez ponto vinte ponto trinta, o gateway dez ponto vinte ponto trinta ponto um e o DNS dez ponto vinte ponto vinte ponto onze.
+
+Na sequencia, criamos no Active Directory a conta comum de laboratorio lab.adm01, incluindo-a no grupo global da Administracao, sem privilegios administrativos. Ingressamos a estacao no dominio smartfactory.corp e a vinculamos a unidade organizacional de computadores do departamento. Apos reiniciar, verificamos o nome, o dominio e o canal seguro entre o cliente e o controlador de dominio.
+
+Finalizamos registrando os testes de DHCP, DNS e autenticacao de maquina, juntamente com os logs e evidencias gerados pelo script. Os acessos efetivos a DFS, SMB, IIS, Kerberos e as tentativas de acesso bloqueado serao demonstrados na bateria final de validacao, quando todos os servidores e estações necessarios estiverem disponiveis.
+'@ | Set-Content -LiteralPath $Roteiro -Encoding UTF8
+    }
+}
+
+VerificarHost
+CriarDocumentos
+try {
+    switch ($Acao) {
+        'Preparar' {
+            VerificarVMs $false
+            $fw=Get-VM -Name 'VM-FW01'
+            $dc=Get-VM -Name 'VM-DC01'
+            $memDC=Get-VMMemory -VMName 'VM-DC01'
+            $switch=Get-VMSwitch -Name 'SF-LAN'
+            $espaco=(Get-PSDrive -Name D).Free
+            $livreGB=[math]::Round($espaco/1GB,2)
+            Registrar "HOST | Disco D: livre: $livreGB GB"
+            Registrar "HOST | FW01 memoria atribuida: $([math]::Round($fw.MemoryAssigned/1GB,2)) GB"
+            Registrar "HOST | DC01 memoria atribuida: $([math]::Round($dc.MemoryAssigned/1GB,2)) GB"
+            Registrar "HOST | DC01 memoria dinamica habilitada: $($memDC.DynamicMemoryEnabled)"
+            Registrar "HOST | SF-LAN: $($switch.SwitchType)"
+            if ($espaco -lt 20GB) {
+                throw 'D: possui menos de 20 GB livres. Libere espaco fisico antes da instalacao do Windows 11.'
+            }
+            if ($espaco -lt 30GB) { Registrar 'ALERTA | Disco D: abaixo de 30 GB; nao preencha o VHDX ate o limite.' }
+            if (-not $memDC.DynamicMemoryEnabled) {
+                Registrar 'ALERTA | DC01 nao esta com memoria dinamica. Nao alterar automaticamente; inspecionar estado real.'
+            }
+            Registrar 'PREPARACAO CONCLUIDA. Proximo: CriarVM.'
+            Registrar "RELATORIO: $Relatorio"
+            Registrar "ROTEIRO: $Roteiro"
+        }
+        'CriarVM' {
+            VerificarVMs $false
+            if (Get-VM -Name $VM -ErrorAction SilentlyContinue) {
+                throw "A VM $VM ja existe. Nao recriar nem apagar; examine seu estado atual."
+            }
+            if (Test-Path -LiteralPath $VhdOS) {
+                throw "Disco virtual ja existe: $VhdOS. Nao sobrescrever."
+            }
+            if (-not $IsoPath) {
+                $isos=@(Get-ChildItem -LiteralPath $IsoDir -Filter '*.iso' -File -ErrorAction Stop |
+                    Where-Object { $_.Name -match 'Windows.?11|Win11|Client' })
+                if ($isos.Count -ne 1) {
+                    $isos | ForEach-Object { Write-Host $_.FullName }
+                    throw 'Nao identifiquei UMA ISO Windows 11. Passe -IsoPath com o caminho completo da ISO correta.'
+                }
+                $IsoPath=$isos[0].FullName
+            }
+            if (-not (Test-Path -LiteralPath $IsoPath -PathType Leaf) -or
+                [IO.Path]::GetExtension($IsoPath) -ine '.iso') {
+                throw "Imagem ISO invalida: $IsoPath"
+            }
+            if ((Get-PSDrive -Name D).Free -lt 20GB) { throw 'Espaco fisico insuficiente em D:.' }
+            New-VM -Name $VM -Generation 2 -MemoryStartupBytes 4GB -NewVHDPath $VhdOS `
+                -NewVHDSizeBytes 80GB -SwitchName 'SF-LAN' -Path $VMDir -ErrorAction Stop | Out-Null
+            Set-VMProcessor -VMName $VM -Count 2
+            Set-VMMemory -VMName $VM -DynamicMemoryEnabled $true -MinimumBytes 4GB `
+                -StartupBytes 4GB -MaximumBytes 6GB -Buffer 5 -Priority 40
+            Set-VMFirmware -VMName $VM -EnableSecureBoot On -SecureBootTemplate MicrosoftWindows
+            Set-VMKeyProtector -VMName $VM -NewLocalKeyProtector -ErrorAction Stop
+            Enable-VMTPM -VMName $VM -ErrorAction Stop
+            Set-VM -Name $VM -CheckpointType Disabled -AutomaticCheckpointsEnabled $false `
+                -AutomaticStartAction Nothing -AutomaticStopAction ShutDown
+            $nic=@(Get-VMNetworkAdapter -VMName $VM)
+            if ($nic.Count -ne 1) { throw 'Esperado um unico adaptador virtual na CLI-ADM01.' }
+            Rename-VMNetworkAdapter -VMName $VM -Name $nic[0].Name -NewName 'CLIENTES'
+            Set-VMNetworkAdapterVlan -VMName $VM -VMNetworkAdapterName CLIENTES -Access -VlanId 30
+            Set-VMNetworkAdapter -VMName $VM -Name CLIENTES -DhcpGuard On -RouterGuard On
+            $dvd=Get-VMDvdDrive -VMName $VM -ErrorAction SilentlyContinue
+            if ($dvd) { Set-VMDvdDrive -VMName $VM -Path $IsoPath }
+            else { Add-VMDvdDrive -VMName $VM -Path $IsoPath | Out-Null }
+            Set-VMFirmware -VMName $VM -FirstBootDevice (Get-VMDvdDrive -VMName $VM | Select-Object -First 1)
+            Registrar "CRIADA | $VM Gen2; 2 vCPU; RAM 4/4/6 GB dinamica; 80 GB VHDX; VLAN30; SecureBoot e vTPM."
+            Registrar "ISO | $IsoPath"
+            Registrar 'Agora inicie CLI-ADM01 e instale Windows 11 PRO; crie uma conta LOCAL administrativa.'
+        }
+        'ConfigurarBase' {
+            VerificarVMs $true
+            $cred=ObterCredencialCliente
+            $saida=Invoke-Command -VMName $VM -Credential $cred -ErrorAction Stop -ScriptBlock {
+                $ErrorActionPreference='Stop'
+                $os=Get-CimInstance Win32_OperatingSystem
+                $nomeOS=$os.Caption
+                if ($nomeOS -notmatch 'Windows 11') { throw "SO incorreto: $nomeOS" }
+                if ($nomeOS -match 'Home') { throw 'Windows 11 Home nao ingressa em dominio AD. Instale Pro/Enterprise/Education.' }
+                $nics=@(Get-NetAdapter | Where-Object { $_.Status -eq 'Up' })
+                if ($nics.Count -ne 1) { throw "Esperava exatamente uma placa de rede ativa; encontrei $($nics.Count)." }
+                $idx=$nics[0].ifIndex
+                Set-NetIPInterface -InterfaceIndex $idx -AddressFamily IPv4 -Dhcp Enabled -ErrorAction Stop
+                Set-DnsClientServerAddress -InterfaceIndex $idx -ResetServerAddresses -ErrorAction Stop
+                ipconfig.exe /renew | Out-Null
+                Start-Sleep -Seconds 3
+                $ipv4=Get-NetIPAddress -InterfaceIndex $idx -AddressFamily IPv4 -ErrorAction Stop |
+                    Where-Object { $_.PrefixOrigin -eq 'Dhcp' -and $_.IPAddress -like '10.20.30.*' } |
+                    Select-Object -First 1
+                if (-not $ipv4) { throw 'SEM CONCESSAO DHCP NA VLAN30. Conferir pfSense DHCP Relay e escopo DC01 antes de continuar.' }
+                $final=[int]($ipv4.IPAddress.Split('.')[-1])
+                if ($final -lt 21 -or $final -gt 254 -or $ipv4.PrefixLength -ne 24) {
+                    throw "IP fora da faixa do CP02: $($ipv4.IPAddress)/$($ipv4.PrefixLength)"
+                }
+                $config=Get-NetIPConfiguration -InterfaceIndex $idx
+                $gw=@($config.IPv4DefaultGateway | Select-Object -ExpandProperty NextHop)
+                if ('10.20.30.1' -notin $gw) { throw "Gateway inesperado: $($gw -join ',')" }
+                $dns=@((Get-DnsClientServerAddress -InterfaceIndex $idx -AddressFamily IPv4).ServerAddresses)
+                if ('10.20.20.11' -notin $dns) { throw "DNS inesperado: $($dns -join ',')" }
+                $srv=Resolve-DnsName -Name '_ldap._tcp.dc._msdcs.smartfactory.corp' `
+                    -Type SRV -Server '10.20.20.11' -ErrorAction Stop
+                if (-not @($srv | Where-Object Type -eq SRV).Count) { throw 'Nao encontrei SRV LDAP do AD.' }
+                "DHCP VALIDADO | IP $($ipv4.IPAddress)/24; GW 10.20.30.1; DNS $($dns -join ',')"
+                "DNS VALIDADO | SRV do dominio smartfactory.corp localizado"
+                if ($env:COMPUTERNAME -ne 'CLI-ADM01') {
+                    Rename-Computer -NewName 'CLI-ADM01' -Force -ErrorAction Stop
+                    'NOME AJUSTADO | reinicio automatico em 15 segundos'
+                    shutdown.exe /r /t 15 /c 'SmartFactory CLI-ADM01 - hostname' | Out-Null
+                }
+                else { 'Nome CLI-ADM01 ja estava configurado.' }
+            }
+            EnviarSaida $saida
+            Registrar 'BASE CONCLUIDA. Se houve renomeacao, aguarde reiniciar antes de seguir.'
+        }
+        'CriarUsuarioTeste' {
+            VerificarVMs $true
+            $credDC=Get-Credential -Message 'Credenciais SMARTFACTORY\Administrator para administrar usuarios no DC01'
+            $senha=Read-Host 'Digite a SENHA FORTE para lab.adm01 (minimo 14 caracteres; nao sera gravada)' -AsSecureString
+            $saida=Invoke-Command -VMName 'VM-DC01' -Credential $credDC `
+                -ArgumentList $senha,$UserTeste,$OuUsuario -ErrorAction Stop -ScriptBlock {
+                param([Security.SecureString]$Password,[string]$Sam,[string]$Ou)
+                $ErrorActionPreference='Stop'
+                Import-Module ActiveDirectory -ErrorAction Stop
+                if (-not (Get-ADOrganizationalUnit -Identity $Ou -ErrorAction SilentlyContinue)) {
+                    throw "OU de usuarios nao encontrada: $Ou"
+                }
+                $g=Get-ADGroup -Identity 'GG_Administracao' -ErrorAction Stop
+                $usuario=Get-ADUser -Filter { SamAccountName -eq $Sam } -ErrorAction Stop
+                if (-not $usuario) {
+                    New-ADUser -Name 'Laboratorio ADM01' -DisplayName 'Laboratorio ADM01' `
+                        -SamAccountName $Sam -UserPrincipalName "$Sam@smartfactory.corp" `
+                        -Path $Ou -AccountPassword $Password -Enabled $true `
+                        -ChangePasswordAtLogon $false -ErrorAction Stop
+                    "CRIADO | Usuario $Sam, comum, habilitado na OU de Administracao."
+                }
+                else {
+                    if (-not $usuario.Enabled) { throw 'Conta lab.adm01 ja existe mas esta desabilitada; verificar manualmente.' }
+                    'EXISTENTE | Conta de laboratorio mantida sem alterar senha.'
+                }
+                $membros=@(Get-ADGroupMember -Identity $g | Select-Object -ExpandProperty SamAccountName)
+                if ($Sam -notin $membros) { Add-ADGroupMember -Identity $g -Members $Sam -ErrorAction Stop }
+                $ehAdmin=Get-ADGroupMember -Identity 'Domain Admins' -Recursive |
+                    Where-Object SamAccountName -eq $Sam
+                if ($ehAdmin) { throw 'ALERTA SEGURANCA: usuario de teste faz parte de Domain Admins.' }
+                "GRUPO VALIDADO | $Sam -> GG_Administracao; nao e Domain Admin."
+            }
+            EnviarSaida $saida
+            Registrar 'CONTA DE TESTE PREPARADA. Guarde a senha; nao exibida nem registrada.'
+        }
+        'IngressarDominio' {
+            VerificarVMs $true
+            $credLocal=ObterCredencialCliente
+            $credDomain=Get-Credential -Message 'Credenciais SMARTFACTORY\Administrator para ingressar CLI-ADM01 no dominio'
+            $saida=Invoke-Command -VMName $VM -Credential $credLocal `
+                -ArgumentList $credDomain,$OuComputador -ErrorAction Stop -ScriptBlock {
+                param([Management.Automation.PSCredential]$ContaAD,[string]$Ou)
+                $ErrorActionPreference='Stop'
+                if ($env:COMPUTERNAME -ne 'CLI-ADM01') { throw 'Aguardando renomeacao/reinicializacao para CLI-ADM01.' }
+                $c=Get-CimInstance Win32_ComputerSystem
+                if ($c.PartOfDomain) {
+                    if ($c.Domain -ne 'smartfactory.corp') { throw "Dominio inesperado: $($c.Domain)" }
+                    'CLIENTE JA ESTA NO DOMINIO CORRETO. Nao repetir ingresso.'
+                    return
+                }
+                $tcp=New-Object Net.Sockets.TcpClient
+                try { $tcp.Connect('10.20.20.11',389) }
+                finally { $tcp.Close() }
+                Add-Computer -DomainName 'smartfactory.corp' -OUPath $Ou `
+                    -Credential $ContaAD -ErrorAction Stop
+                'DOMINIO | CLI-ADM01 ingressou em smartfactory.corp; reinicio automatico em 15 segundos.'
+                shutdown.exe /r /t 15 /c 'SmartFactory CLI-ADM01 - ingresso no dominio' | Out-Null
+            }
+            EnviarSaida $saida
+            Registrar 'AGUARDE | Reboot e login de dominio antes da validacao final.'
+        }
+        'Validar' {
+            VerificarVMs $true
+            $vmobj=Get-VM -Name $VM
+            $vlan=Get-VMNetworkAdapterVlan -VMName $VM -VMNetworkAdapterName 'CLIENTES' -ErrorAction Stop
+            $fw=Get-VMFirmware -VMName $VM
+            $tpm=Get-VMSecurity -VMName $VM -ErrorAction Stop
+            $mem=Get-VMMemory -VMName $VM
+            $vhd=Get-VHD -Path $VhdOS -ErrorAction Stop
+            if ($vmobj.Generation -ne 2 -or $vlan.OperationMode -ne 'Access' -or $vlan.AccessVlanId -ne 30) {
+                throw 'Falha na geracao/VLAN do Hyper-V.'
+            }
+            if ($fw.SecureBoot.ToString() -ne 'On' -or -not $tpm.Enabled) {
+                throw 'Secure Boot ou vTPM nao esta habilitado.'
+            }
+            if (-not $mem.DynamicMemoryEnabled -or $mem.Minimum -lt 4GB -or $mem.Startup -lt 4GB -or $vhd.Size -lt 64GB) {
+                throw 'Hardware virtual abaixo dos requisitos do Windows 11.'
+            }
+            $cred=ObterCredencialCliente
+            $dados=Invoke-Command -VMName $VM -Credential $cred -ErrorAction Stop -ScriptBlock {
+                $ErrorActionPreference='Stop'
+                $os=Get-CimInstance Win32_OperatingSystem
+                $c=Get-CimInstance Win32_ComputerSystem
+                if ($os.Caption -notmatch 'Windows 11') { throw 'Windows 11 nao identificado.' }
+                if ($c.Name -ne 'CLI-ADM01' -or -not $c.PartOfDomain -or
+                    $c.Domain -ne 'smartfactory.corp') { throw 'Nome/domino da maquina incorreto.' }
+                if (-not (Test-ComputerSecureChannel -ErrorAction Stop)) { throw 'Canal seguro do AD apresentou falha.' }
+                $nic=@(Get-NetAdapter | Where-Object Status -eq Up)
+                if ($nic.Count -ne 1) { throw 'Quantidade inesperada de interfaces ativas.' }
+                $ip=Get-NetIPAddress -InterfaceIndex $nic[0].ifIndex -AddressFamily IPv4 |
+                    Where-Object { $_.PrefixOrigin -eq 'Dhcp' -and $_.IPAddress -like '10.20.30.*' } |
+                    Select-Object -First 1
+                if (-not $ip -or $ip.PrefixLength -ne 24 -or [int]($ip.IPAddress.Split('.')[-1]) -lt 21) {
+                    throw 'Cliente sem endereco DHCP valido na VLAN30.'
+                }
+                $dns=@((Get-DnsClientServerAddress -InterfaceIndex $nic[0].ifIndex -AddressFamily IPv4).ServerAddresses)
+                if ('10.20.20.11' -notin $dns) { throw 'DNS corporativo incorreto.' }
+                $gc=Get-NetIPConfiguration -InterfaceIndex $nic[0].ifIndex
+                $gw=@($gc.IPv4DefaultGateway | Select-Object -ExpandProperty NextHop)
+                if ('10.20.30.1' -notin $gw) { throw 'Gateway inesperado.' }
+                $reg=Resolve-DnsName -Server 10.20.20.11 -Name '_ldap._tcp.dc._msdcs.smartfactory.corp' -Type SRV -ErrorAction Stop
+                if (-not @($reg | Where-Object Type -eq SRV).Count) { throw 'DNS SRV do dominio ausente.' }
+                [pscustomobject]@{
+                    SO=$os.Caption; Nome=$c.Name; Dominio=$c.Domain; IP=$ip.IPAddress
+                    DNS=$dns -join ','; Gateway=$gw -join ','; CanalSeguro='OK'; SRV='OK'
+                }
+            }
+            $credDC=Get-Credential -Message 'SMARTFACTORY\Administrator do DC01 para conferir AD e lease DHCP'
+            $infoAD=Invoke-Command -VMName 'VM-DC01' -Credential $credDC -ArgumentList $dados.IP `
+                -ErrorAction Stop -ScriptBlock {
+                param([string]$IPCliente)
+                $ErrorActionPreference='Stop'
+                Import-Module ActiveDirectory,DhcpServer -ErrorAction Stop
+                $pc=Get-ADComputer -Identity 'CLI-ADM01' -Properties DistinguishedName -ErrorAction Stop
+                if ($pc.DistinguishedName -notlike 'CN=CLI-ADM01,OU=Computadores,OU=Administracao,OU=SmartFactory,*') {
+                    throw "Objeto AD na OU incorreta: $($pc.DistinguishedName)"
+                }
+                $user=Get-ADUser -Identity 'lab.adm01' -ErrorAction Stop
+                $membros=@(Get-ADGroupMember -Identity 'GG_Administracao' |
+                    Select-Object -ExpandProperty SamAccountName)
+                if ($user.SamAccountName -notin $membros) { throw 'Usuario de teste fora de GG_Administracao.' }
+                $lease=Get-DhcpServerv4Lease -ScopeId '10.20.30.0' -ErrorAction Stop |
+                    Where-Object { $_.IPAddress.IPAddressToString -eq $IPCliente } |
+                    Select-Object -First 1
+                if (-not $lease) { throw "Concessao $IPCliente nao encontrada no DHCP do DC01." }
+                [pscustomobject]@{
+                    Computador=$pc.DistinguishedName; Usuario=$user.SamAccountName
+                    Grupo='GG_Administracao'; IPConcedido=$lease.IPAddress.IPAddressToString
+                    DHCPLease='Encontrado'; DHCPServer='VM-DC01'
+                }
+            }
+            EnviarSaida $dados
+            EnviarSaida $infoAD
+            Registrar 'VALIDACAO APROVADA: Windows 11, VLAN30, DHCP Relay, DNS, AD, TPM e canal seguro.'
+            Add-Content -LiteralPath $Relatorio -Encoding UTF8 -Value `
+                "`n## Validacao $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n- Hyper-V/TPM/RAM: aprovado`n- DHCP / DNS / ingresso no dominio: aprovado`n- Usuario comum e grupo: conferidos`n- Testes finais de SMB, DFS, IIS, Kerberos e bloqueios: PENDENTES de bateria integral`n"
+        }
+    }
+}
+catch {
+    Registrar ('ERRO | Acao=' + $Acao + ' | ' + $_.Exception.Message)
+    throw
+}
+
+

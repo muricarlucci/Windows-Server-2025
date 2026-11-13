@@ -1,0 +1,451 @@
+﻿# SmartFactory-GS | ETAPA 09 - PAW-TI01: Windows 11, dominio e administracao segura
+# Executar no WINDOWS POWERSHELL 5.1 do HOST, como Administrador.
+# Acoes: Preparar -> CriarVM -> instalar Windows 11 Pro -> ConfigurarBase
+#       -> CriarContaAdmin -> IngressarDominio -> ConfigurarPAW -> [InstalarRSAT] -> Validar
+# NAO apaga VMs, nao substitui discos e nao desliga outras VMs automaticamente.
+[CmdletBinding()]
+param(
+    [ValidateSet('Preparar','CriarVM','ConfigurarBase','CriarContaAdmin','IngressarDominio','ConfigurarPAW','InstalarRSAT','Validar')]
+    [string]$Acao='Preparar',
+    [string]$IsoPath=''
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+
+$Base='D:\FIAP\WINDOWS\SmartFactory-GS'
+$VM='PAW-TI01'
+$NomeAdaptador='ADMIN-PAW'
+$DirVM=Join-Path $Base '02-VMs\PAW-TI01'
+$DiscoOS=Join-Path $DirVM 'PAW-TI01-WIN11-OS.vhdx'
+$DirISO=Join-Path $Base '01-ISOs'
+$Log=Join-Path $Base '09-Logs-Testes\11-PAW-TI01-Administracao-Segura-Resultado.txt'
+$Relatorio=Join-Path $Base '00-Documentacao\09-PAW-TI01-Administracao-Segura.md'
+$Checklist=Join-Path $Base '00-Documentacao\09-PAW-TI01-Checklist.txt'
+$Roteiro=Join-Path $Base '07-Video\Roteiros\Roteiro_Video_Etapa_10.txt'
+$Evidencias=Join-Path $Base '06-Evidencias\09-PAW-TI01-Administracao-Segura'
+$OUComputador='OU=Computadores,OU=TI,OU=SmartFactory,DC=smartfactory,DC=corp'
+$OUUsuario='OU=Usuarios,OU=TI,OU=SmartFactory,DC=smartfactory,DC=corp'
+$OUGrupos='OU=Grupos,OU=TI,OU=SmartFactory,DC=smartfactory,DC=corp'
+$ContaAdmin='adm.lab'
+$GrupoPAW='GG_PAW_Administradores'
+
+function Registrar([string]$Mensagem) {
+    $linha=('{0} | {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'),$Mensagem)
+    Add-Content -LiteralPath $Log -Encoding UTF8 -Value $linha
+    Write-Host $linha
+}
+function ExigirHost {
+    if ($PSVersionTable.PSVersion.Major -ne 5) { throw 'Use o Windows PowerShell 5.1 do host (nao PowerShell 7).' }
+    $p=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+    if (-not $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        throw 'Abra Windows PowerShell COMO ADMINISTRADOR no computador host.'
+    }
+    if (-not (Test-Path -LiteralPath $Base -PathType Container)) { throw "Projeto nao encontrado: $Base" }
+    Import-Module Hyper-V -ErrorAction Stop
+    foreach ($dir in @($DirVM,(Split-Path $Log),(Split-Path $Relatorio),(Split-Path $Checklist),
+                       (Split-Path $Roteiro),$Evidencias)) {
+        if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
+            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        }
+    }
+}
+function ExigirRunning([string]$Nome) {
+    $v=Get-VM -Name $Nome -ErrorAction SilentlyContinue
+    if (-not $v) { throw "VM ausente: $Nome" }
+    if ($v.State -ne 'Running') { throw "$Nome deve estar ligada (Running); atual: $($v.State)" }
+}
+function ConferirAmbiente([bool]$ComPAW) {
+    ExigirRunning 'VM-FW01'
+    ExigirRunning 'VM-DC01'
+    if ($ComPAW) { ExigirRunning $VM }
+    foreach ($nome in @('CLI-ADM01','VM-FILE01','VM-WEB01','VM-BKP01')) {
+        $v=Get-VM -Name $nome -ErrorAction SilentlyContinue
+        if ($v -and $v.State -ne 'Off') {
+            throw "$nome precisa estar desligada para liberar RAM. Desligue normalmente e aguarde Off."
+        }
+    }
+    $sw=Get-VMSwitch -Name 'SF-LAN' -ErrorAction Stop
+    if ($sw.SwitchType -ne 'Internal') { throw 'SF-LAN nao esta definido como switch Internal.' }
+}
+function CredencialPAW {
+    ExigirRunning $VM
+    Get-Credential -Message 'Credenciais ADMINISTRATIVAS do PAW-TI01 (antes do dominio: conta local; depois: SMARTFACTORY\adm.lab ou SMARTFACTORY\Administrator)'
+}
+function SaidaConvidado($Dados) {
+    $texto=$Dados | Out-String -Width 240
+    foreach ($linha in ($texto -split "`r?`n")) {
+        if ($linha.Trim()) { Registrar ('CONVIDADO | '+$linha.Trim()) }
+    }
+}
+function CriarArquivos {
+    if (-not (Test-Path -LiteralPath $Relatorio -PathType Leaf)) {
+@'
+# SmartFactory-GS — Etapa 09: PAW-TI01 e Administracao Segura
+
+Estado: EM IMPLEMENTACAO. Nao declarar acesso remoto comprovado antes de teste real.
+
+## Arquitetura
+- PAW-TI01: Windows 11 Pro, Hyper-V geracao 2, Secure Boot, vTPM, 2 vCPU.
+- VHDX dinamico 80 GB, memoria dinamica min/start 4 GB, max 6 GB.
+- Rede SF-LAN, Access VLAN 90, IP estatico 10.20.90.10/24.
+- Gateway 10.20.90.1; DNS exclusivo 10.20.20.11; dominio smartfactory.corp.
+- OU: OU=Computadores,OU=TI,OU=SmartFactory.
+- Conta nominal de LABORATORIO adm.lab com grupo global GG_PAW_Administradores.
+- Grupo com privilegio de Administrador LOCAL apenas nesta PAW. Nao Domain Admins.
+- Restricao de logon da conta adm.lab a PAW-TI01 (atributo AD LogonWorkstations).
+- Politica de uso: acesso administrativo; nao utilizar a PAW para email/navegacao cotidiana.
+
+## Protecoes aplicadas
+- Firewall do Windows habilitado; inbound negado por padrao.
+- RDP RECEBIDO na PAW desabilitado; a PAW usa mstsc como cliente de conexoes de saida.
+- Nenhum listener de SSH ou WinRM aberto na PAW pela automacao.
+- RSAT instalavel opcionalmente, conforme disponibilidade do Windows Update.
+- Nao configurar TrustedHosts=* ou Basic Auth de WinRM.
+
+## Dependencias e limites
+- FW01 e DC01 devem estar Running; CLI-ADM01, FILE01, WEB01, BKP01 Off durante esta etapa.
+- DC01 com RAM dinamica: manter como esta enquanto estavel.
+- Regras pfSense da Etapa 03 autorizam 10.20.90.10 aos destinos administrativos previstos.
+- RDP WEB01/BKP01, WinRM dos membros, Wazuh SSH/dashboard: testar na bateria final quando alvos estiverem ligados.
+- Conta adm.lab NAO tem automaticamente privilegios nos servidores remotos; isso requer delegacao posterior.
+- LAPS, GPO de PAW, auditoria completa, Credential Guard e telemetria: futuras etapas de hardening.
+- O script nao bloqueia navegação na Internet por politica global; implementar politica formal depois.
+
+## Evidencias
+- Geracao 2, vTPM, Secure Boot e RAM da VM.
+- VLAN90 e IP estatico no Windows.
+- Conta adm.lab e grupo no AD, restricao de logon a PAW, ausencia em Domain Admins.
+- Grupo local de administradores, firewall ativo, RDP inbound desativado.
+- Verificacao DNS, canal seguro AD e conectividade administrativa quando o destino estiver disponivel.
+'@ | Set-Content -LiteralPath $Relatorio -Encoding UTF8
+    }
+    if (-not (Test-Path -LiteralPath $Checklist -PathType Leaf)) {
+@'
+[ ] FW01, DC01 Running; CLI-ADM01, FILE01, WEB01, BKP01 Off
+[ ] Preparar: ram e espaco livre verificados
+[ ] CriarVM: Gen2, Secure Boot, vTPM, 2 vCPU, 80GB, RAM dinamica 4/4/6GB
+[ ] Instalar Windows 11 Pro (NAO Home); conta local administrativa criada
+[ ] ConfigurarBase: PAW-TI01, 10.20.90.10/24, GW .1, DNS DC01 .11
+[ ] CriarContaAdmin: adm.lab em OU TI, GG_PAW_Administradores, nao Domain Admin
+[ ] IngressarDominio: smartfactory.corp, OU=Computadores/ TI
+[ ] ConfigurarPAW: grupo local Administrators, firewall, entrada RDP desabilitada
+[ ] Logon interativo SMARTFACTORY\adm.lab na PAW, sem senha em screenshots
+[ ] InstalarRSAT (opcional): AD / DNS / GPO se houver conectividade a Windows Update
+[ ] Validar: IP, OU, conta, canal seguro, vTPM e restricoes
+[ ] Testes de RDP/WinRM/SSH e negacoes a partir de clientes: fase final
+[ ] Capturas salvas; video 10 e roteiro criado automaticamente
+'@ | Set-Content -LiteralPath $Checklist -Encoding UTF8
+    }
+    # Atualizar roteiro na preparacao sem apagar silencio versões anteriores por acidente.
+    if (-not (Test-Path -LiteralPath $Roteiro -PathType Leaf)) {
+@'
+Nesta etapa, criamos a PAW-TI01, a estacao de administracao privilegiada da SmartFactory. O objetivo e separar tarefas de gerenciamento das atividades comuns dos funcionarios, reduzindo o risco de expor credenciais administrativas em computadores de uso diario.
+
+Primeiro, avaliamos o consumo de memoria do laboratorio. Mantivemos ligados somente o firewall FW01 e o controlador de dominio DC01 e desligamos as demais maquinas virtuais. O DC01 permaneceu com memoria dinamica. Em seguida, o script verificou o switch SF-LAN, os recursos disponiveis e a estrutura de pastas, criando automaticamente o relatorio, o log e este roteiro.
+
+Na criacao da PAW, o PowerShell provisionou uma maquina Hyper-V de Geracao 2, com duas CPUs virtuais, disco VHDX dinamico de oitenta gigabytes e memoria dinamica a partir de quatro gigabytes. Tambem habilitou Secure Boot e TPM virtual, conforme os requisitos do Windows 11, e configurou o adaptador em modo Access na VLAN 90. Por fim, instalamos o Windows 11 Pro e criamos uma conta administrativa local.
+
+Com a instalacao concluida, utilizamos PowerShell Direct para configurar automaticamente o nome PAW-TI01 e o IP estatico dez ponto vinte ponto noventa ponto dez, com gateway dez ponto vinte ponto noventa ponto um e DNS apontando para o DC01. Diferentemente da estacao de Administracao, a PAW nao depende do DHCP, porque seu endereco e reservado nas regras do firewall.
+
+Depois, criamos no Active Directory uma conta administrativa nominal de laboratorio, adm.lab, e o grupo global GG_PAW_Administradores. Essa conta nao foi adicionada a Domain Admins. O dominio passou a restringir seu logon a PAW-TI01, e o grupo recebeu privilegio de administrador local somente na estacao protegida. Na sequencia, ingressamos a PAW no dominio smartfactory.corp, dentro da OU de computadores de TI.
+
+A etapa de protecao confirmou o firewall do Windows habilitado com bloqueio de entrada por padrao e desabilitou o recebimento de conexoes RDP na propria PAW. Mantivemos ferramentas como Remote Desktop e PowerShell para iniciar conexoes administrativas de saida, sem habilitar servicos desnecessarios de entrada. O script tambem oferece a instalacao opcional das ferramentas RSAT, dependendo da disponibilidade do Windows Update.
+
+Finalizamos validando a VLAN, o IP, o canal seguro com o Active Directory, a conta e o grupo administrativo, os recursos de seguranca e os registros no dominio. O acesso real por RDP a WEB01 e BKP01, por WinRM aos servidores e, posteriormente, por SSH ao Wazuh sera comprovado quando realizarmos a bateria final de testes com os destinos ligados.
+'@ | Set-Content -LiteralPath $Roteiro -Encoding UTF8
+    }
+}
+
+ExigirHost
+CriarArquivos
+try {
+    switch ($Acao) {
+        'Preparar' {
+            ConferirAmbiente $false
+            $dc=Get-VM -Name 'VM-DC01'
+            $fw=Get-VM -Name 'VM-FW01'
+            $mem=Get-VMMemory -VMName 'VM-DC01'
+            $livre=(Get-PSDrive -Name D).Free
+            Registrar "HOST | Disco D: livre $([math]::Round($livre/1GB,2)) GB"
+            Registrar "HOST | FW01 memoria atribuida $([math]::Round($fw.MemoryAssigned/1GB,2)) GB"
+            Registrar "HOST | DC01 memoria atribuida $([math]::Round($dc.MemoryAssigned/1GB,2)) GB; demanda $([math]::Round($dc.MemoryDemand/1GB,2)) GB"
+            Registrar "HOST | DC01 memoria dinamica: $($mem.DynamicMemoryEnabled); min $([math]::Round($mem.Minimum/1GB,2)); startup $([math]::Round($mem.Startup/1GB,2)); max $([math]::Round($mem.Maximum/1GB,2)) GB"
+            if ($livre -lt 25GB) { throw 'Menos de 25GB livres em D:. Liberar espaco antes de instalar o Windows 11.' }
+            if (-not $mem.DynamicMemoryEnabled) { Registrar 'AVISO | DC01 nao esta com RAM dinamica. Script nao mudara essa configuracao.' }
+            Registrar 'PREPARACAO CONCLUIDA. Proximo: CriarVM.'
+            Registrar "ROTEIRO: $Roteiro"
+            Registrar "RELATORIO: $Relatorio"
+        }
+        'CriarVM' {
+            ConferirAmbiente $false
+            if (Get-VM -Name $VM -ErrorAction SilentlyContinue) { throw "VM $VM ja existe. Nao sobrescrever." }
+            if (Test-Path -LiteralPath $DiscoOS) { throw "Disco existente: $DiscoOS. Nao sobrescrever." }
+            if ((Get-PSDrive -Name D).Free -lt 25GB) { throw 'Disco D: sem margem suficiente.' }
+            if (-not $IsoPath) {
+                $isOs=@(Get-ChildItem -LiteralPath $DirISO -Filter '*.iso' -File |
+                    Where-Object { $_.Name -match 'Win(dows)?11|Client' })
+                if ($isOs.Count -ne 1) { $isOs | ForEach-Object { Write-Host $_.FullName }; throw 'Indique -IsoPath com a ISO Windows 11 Pro que funcionou na CLI-ADM01.' }
+                $IsoPath=$isOs[0].FullName
+            }
+            if (-not (Test-Path -LiteralPath $IsoPath -PathType Leaf) -or ([IO.Path]::GetExtension($IsoPath) -ine '.iso')) {
+                throw "ISO invalida: $IsoPath"
+            }
+            New-VM -Name $VM -Path $DirVM -Generation 2 -MemoryStartupBytes 4GB `
+                -NewVHDPath $DiscoOS -NewVHDSizeBytes 80GB -SwitchName 'SF-LAN' -ErrorAction Stop | Out-Null
+            Set-VMProcessor -VMName $VM -Count 2
+            Set-VMMemory -VMName $VM -DynamicMemoryEnabled $true -MinimumBytes 4GB `
+                -StartupBytes 4GB -MaximumBytes 6GB -Buffer 5 -Priority 40
+            Set-VMFirmware -VMName $VM -EnableSecureBoot On -SecureBootTemplate MicrosoftWindows
+            Set-VMKeyProtector -VMName $VM -NewLocalKeyProtector
+            Enable-VMTPM -VMName $VM
+            Set-VM -Name $VM -CheckpointType Disabled -AutomaticCheckpointsEnabled $false `
+                -AutomaticStartAction Nothing -AutomaticStopAction ShutDown
+            $nics=@(Get-VMNetworkAdapter -VMName $VM)
+            if ($nics.Count -ne 1) { throw 'Esperado um unico adaptador na PAW.' }
+            Rename-VMNetworkAdapter -VMName $VM -Name $nics[0].Name -NewName $NomeAdaptador
+            Set-VMNetworkAdapterVlan -VMName $VM -VMNetworkAdapterName $NomeAdaptador -Access -VlanId 90
+            Set-VMNetworkAdapter -VMName $VM -Name $NomeAdaptador -DhcpGuard On -RouterGuard On
+            $dvd=Get-VMDvdDrive -VMName $VM -ErrorAction SilentlyContinue
+            if ($dvd) { Set-VMDvdDrive -VMName $VM -Path $IsoPath }
+            else { Add-VMDvdDrive -VMName $VM -Path $IsoPath | Out-Null }
+            Set-VMFirmware -VMName $VM -FirstBootDevice (Get-VMDvdDrive -VMName $VM | Select-Object -First 1)
+            Registrar 'VM CRIADA | Gen2, vTPM, Secure Boot, 2 vCPU, RAM 4/4/6 GB dinamica, VHDX 80GB, Access VLAN90.'
+            Registrar "ISO: $IsoPath"
+            Registrar 'Agora iniciar PAW-TI01 e instalar WINDOWS 11 PRO, conta local administradora.'
+        }
+        'ConfigurarBase' {
+            ConferirAmbiente $true
+            $cred=CredencialPAW
+            $ret=Invoke-Command -VMName $VM -Credential $cred -ErrorAction Stop -ScriptBlock {
+                $ErrorActionPreference='Stop'
+                $os=Get-CimInstance Win32_OperatingSystem
+                if ($os.Caption -notmatch 'Windows 11' -or $os.Caption -match 'Home') { throw "Instale Windows 11 Pro/Enterprise/Education, nao $($os.Caption)." }
+                $nic=@(Get-NetAdapter | Where-Object Status -eq Up)
+                if ($nic.Count -ne 1) { throw "Esperado um adaptador ativo: $($nic.Count)." }
+                $idx=$nic[0].ifIndex
+                Set-NetIPInterface -InterfaceIndex $idx -AddressFamily IPv4 -Dhcp Disabled -ErrorAction Stop
+                $old=@(Get-NetIPAddress -InterfaceIndex $idx -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                    Where-Object { $_.IPAddress -ne '10.20.90.10' -and $_.IPAddress -notlike '169.254.*' })
+                foreach ($entry in $old) { Remove-NetIPAddress -InterfaceIndex $idx -IPAddress $entry.IPAddress -Confirm:$false -ErrorAction Stop }
+                # Limpar rota default antiga do DHCP, sem mexer em outros adaptadores.
+                $rotas=@(Get-NetRoute -InterfaceIndex $idx -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue)
+                foreach($rota in $rotas) {
+                    if ($rota.NextHop -ne '10.20.90.1') {
+                        Remove-NetRoute -InterfaceIndex $idx -DestinationPrefix '0.0.0.0/0' -NextHop $rota.NextHop -Confirm:$false -ErrorAction Stop
+                    }
+                }
+                $ip=Get-NetIPAddress -InterfaceIndex $idx -IPAddress '10.20.90.10' -ErrorAction SilentlyContinue
+                if (-not $ip) { New-NetIPAddress -InterfaceIndex $idx -IPAddress '10.20.90.10' -PrefixLength 24 -ErrorAction Stop | Out-Null }
+                $rotaBoa=@(Get-NetRoute -InterfaceIndex $idx -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Where-Object NextHop -eq '10.20.90.1')
+                if (-not $rotaBoa.Count) { New-NetRoute -InterfaceIndex $idx -DestinationPrefix '0.0.0.0/0' -NextHop '10.20.90.1' -RouteMetric 10 -ErrorAction Stop | Out-Null }
+                Set-DnsClientServerAddress -InterfaceIndex $idx -ServerAddresses '10.20.20.11' -ErrorAction Stop
+                $end=Get-NetIPAddress -InterfaceIndex $idx -IPAddress '10.20.90.10' -ErrorAction Stop
+                if ($end.PrefixLength -ne 24) { throw 'IP da PAW tem prefixo diferente de /24.' }
+                $srv=Resolve-DnsName -Name '_ldap._tcp.dc._msdcs.smartfactory.corp' -Type SRV -Server '10.20.20.11' -ErrorAction Stop
+                if (-not @($srv | Where-Object Type -eq SRV).Count) { throw 'DNS SRV do AD nao respondeu.' }
+                'IP: 10.20.90.10/24 | gateway: 10.20.90.1 | DNS: 10.20.20.11'
+                'DNS SRV do Active Directory: OK'
+                if ($env:COMPUTERNAME -ne 'PAW-TI01') {
+                    Rename-Computer -NewName 'PAW-TI01' -Force -ErrorAction Stop
+                    'Renomeacao para PAW-TI01. Reinicio agendado em 15s.'
+                    shutdown.exe /r /t 15 /c 'SmartFactory - configuracao PAW-TI01' | Out-Null
+                } else { 'Hostname PAW-TI01: OK' }
+            }
+            SaidaConvidado $ret
+            Registrar 'CONFIGURACAO BASE CONCLUIDA. Aguarde reinicio se hostname mudou.'
+        }
+        'CriarContaAdmin' {
+            ConferirAmbiente $true
+            $credDC=Get-Credential -Message 'SMARTFACTORY\Administrator no DC01 para criar a conta adm.lab'
+            $senha=Read-Host 'Senha forte para adm.lab (minimo 16 caracteres; nao sera gravada)' -AsSecureString
+            $ret=Invoke-Command -VMName 'VM-DC01' -Credential $credDC `
+                -ArgumentList $senha,$OUUsuario,$OUGrupos,$ContaAdmin,$GrupoPAW -ErrorAction Stop -ScriptBlock {
+                param([Security.SecureString]$Senha,[string]$OuUser,[string]$OuGrp,[string]$Sam,[string]$Grupo)
+                $ErrorActionPreference='Stop'
+                Import-Module ActiveDirectory -ErrorAction Stop
+                foreach ($ou in @($OuUser,$OuGrp)) {
+                    Get-ADOrganizationalUnit -Identity $ou -ErrorAction Stop | Out-Null
+                }
+                $g=Get-ADGroup -Filter { SamAccountName -eq $Grupo } -ErrorAction Stop
+                if (-not $g) {
+                    $g=New-ADGroup -Name $Grupo -SamAccountName $Grupo -GroupScope Global -GroupCategory Security `
+                        -Path $OuGrp -Description 'Administradores locais autorizados da PAW-TI01; NAO Domain Admins' -PassThru -ErrorAction Stop
+                    "Grupo criado: $Grupo"
+                } elseif ($g.GroupScope -ne 'Global') { throw "Grupo $Grupo com escopo inesperado." }
+                $u=Get-ADUser -Filter { SamAccountName -eq $Sam } -Properties Enabled,LogonWorkstations -ErrorAction Stop
+                if (-not $u) {
+                    New-ADUser -Name 'Administrador Laboratorio PAW' -DisplayName 'Administrador Laboratorio PAW' `
+                        -SamAccountName $Sam -UserPrincipalName "$Sam@smartfactory.corp" -Path $OuUser `
+                        -AccountPassword $Senha -Enabled $true -ChangePasswordAtLogon $false -ErrorAction Stop
+                    "Conta criada: $Sam"
+                } elseif (-not $u.Enabled) { throw "Conta $Sam existe mas esta desabilitada; avaliar manualmente." }
+                Set-ADUser -Identity $Sam -LogonWorkstations 'PAW-TI01' -ErrorAction Stop
+                $membros=@(Get-ADGroupMember -Identity $Grupo | Select-Object -ExpandProperty SamAccountName)
+                if ($Sam -notin $membros) { Add-ADGroupMember -Identity $Grupo -Members $Sam -ErrorAction Stop }
+                $priv=@(Get-ADGroupMember -Identity 'Domain Admins' -Recursive | Where-Object SamAccountName -eq $Sam)
+                if ($priv.Count) { throw 'SEGURANCA: adm.lab encontrado em Domain Admins. Interromper.' }
+                $final=Get-ADUser -Identity $Sam -Properties LogonWorkstations,DistinguishedName
+                if ($final.LogonWorkstations -ne 'PAW-TI01') { throw 'Restricao LogonWorkstations nao ficou aplicada.' }
+                [pscustomobject]@{Conta=$Sam;Grupo=$Grupo;LogonPermitido=$final.LogonWorkstations;DomainAdmin=$false;OU=$final.DistinguishedName}
+            }
+            SaidaConvidado $ret
+            Registrar 'CONTA PREPARADA | adm.lab e grupo PAW; sem Domain Admins.'
+        }
+        'IngressarDominio' {
+            ConferirAmbiente $true
+            $localCred=CredencialPAW
+            $domainCred=Get-Credential -Message 'SMARTFACTORY\Administrator para ingressar a PAW no dominio'
+            $ret=Invoke-Command -VMName $VM -Credential $localCred -ArgumentList $domainCred,$OUComputador -ErrorAction Stop -ScriptBlock {
+                param([Management.Automation.PSCredential]$ContaAD,[string]$Ou)
+                $ErrorActionPreference='Stop'
+                if ($env:COMPUTERNAME -ne 'PAW-TI01') { throw 'Aguarde o reinicio do hostname PAW-TI01.' }
+                $c=Get-CimInstance Win32_ComputerSystem
+                if ($c.PartOfDomain) {
+                    if ($c.Domain -ne 'smartfactory.corp') { throw "Dominio incorreto: $($c.Domain)" }
+                    'PAW ja ingressou no dominio correto. Nao repetir operacao.'
+                    return
+                }
+                $r=Resolve-DnsName -Name '_ldap._tcp.dc._msdcs.smartfactory.corp' -Type SRV -ErrorAction Stop
+                if (-not $r) { throw 'Sem resolucao DNS do AD.' }
+                Add-Computer -DomainName 'smartfactory.corp' -OUPath $Ou -Credential $ContaAD -ErrorAction Stop
+                'PAW ingressou no dominio; reinicio programado em 15 segundos.'
+                shutdown.exe /r /t 15 /c 'SmartFactory - ingresso da PAW no AD' | Out-Null
+            }
+            SaidaConvidado $ret
+            Registrar 'DOMINIO CONCLUIDO. Aguarde reinicio e login de dominio.'
+        }
+        'ConfigurarPAW' {
+            ConferirAmbiente $true
+            $cred=CredencialPAW
+            $ret=Invoke-Command -VMName $VM -Credential $cred -ArgumentList $GrupoPAW -ErrorAction Stop -ScriptBlock {
+                param([string]$NomeGrupo)
+                $ErrorActionPreference='Stop'
+                $c=Get-CimInstance Win32_ComputerSystem
+                if (-not $c.PartOfDomain -or $c.Domain -ne 'smartfactory.corp') { throw 'PAW nao entrou no dominio.' }
+                $identidade="SMARTFACTORY\$NomeGrupo"
+                $sid=[Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')
+                $g=Get-LocalGroup -SID $sid -ErrorAction Stop
+                $tem=@(Get-LocalGroupMember -Group $g.Name -ErrorAction Stop | Where-Object Name -eq $identidade)
+                if (-not $tem.Count) { Add-LocalGroupMember -Group $g.Name -Member $identidade -ErrorAction Stop }
+                Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True -DefaultInboundAction Block -ErrorAction Stop
+                New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server' -Force | Out-Null
+                Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server' -Name 'fDenyTSConnections' -Value 1 -ErrorAction Stop
+                New-Item -Path 'C:\SF-Administracao' -ItemType Directory -Force | Out-Null
+@'
+# SmartFactory PAW-TI01 — diagnostico de portas a partir da PAW
+# Este script apenas TESTA conectividade. Nao instala roles nem abre portas.
+$destinos=@(
+  @{Nome='DC01 WinRM';IP='10.20.20.11';Porta=5985},
+  @{Nome='FILE01 WinRM';IP='10.20.20.15';Porta=5985},
+  @{Nome='WEB01 RDP';IP='10.20.100.10';Porta=3389},
+  @{Nome='BKP01 RDP';IP='10.20.120.10';Porta=3389},
+  @{Nome='WAZUH SSH';IP='10.20.110.10';Porta=22},
+  @{Nome='WAZUH Dashboard';IP='10.20.110.10';Porta=443}
+)
+foreach($d in $destinos){
+  $r=Test-NetConnection -ComputerName $d.IP -Port $d.Porta -WarningAction SilentlyContinue
+  [pscustomobject]@{Destino=$d.Nome;Porta=$d.Porta;TCP=$r.TcpTestSucceeded}
+}
+'@ | Set-Content -LiteralPath 'C:\SF-Administracao\Testar-Portas-Administrativas.ps1' -Encoding UTF8
+                $novo=@(Get-LocalGroupMember -Group $g.Name | Where-Object Name -eq $identidade)
+                if (-not $novo.Count) { throw 'Grupo nao entrou no Administrators local da PAW.' }
+                [pscustomobject]@{Dominio=$c.Domain;GrupoLocal=$g.Name;GrupoAdicionado=$identidade;Firewall='Ativo';RDPInbound='Desabilitado';Ferramenta='C:\SF-Administracao\Testar-Portas-Administrativas.ps1'}
+            }
+            SaidaConvidado $ret
+            Registrar 'PAW PROTEGIDA | Administradores locais via grupo AD, firewall e RDP inbound desabilitado.'
+            Registrar 'IMPORTANTE | adm.lab NAO recebeu administracao dos servidores remotos; delegacao vem depois.'
+        }
+        'InstalarRSAT' {
+            ConferirAmbiente $true
+            $cred=CredencialPAW
+            Registrar 'RSAT OPCIONAL | Pode depender do Windows Update. Nao desligue as protecoes para instalar.'
+            $ret=Invoke-Command -VMName $VM -Credential $cred -ErrorAction Stop -ScriptBlock {
+                $ErrorActionPreference='Stop'
+                $nomes=@('Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0',
+                         'Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0',
+                         'Rsat.Dns.Tools~~~~0.0.1.0')
+                foreach ($nome in $nomes) {
+                    $cap=Get-WindowsCapability -Online -Name $nome -ErrorAction Stop
+                    if ($cap.State -eq 'Installed') { "JA INSTALADO | $nome"; continue }
+                    try {
+                        $res=Add-WindowsCapability -Online -Name $nome -ErrorAction Stop
+                        "RSAT | $nome | $($res.Online) | RestartNeeded=$($res.RestartNeeded)"
+                    } catch { "RSAT PENDENTE | $nome | $($_.Exception.Message)" }
+                }
+            }
+            SaidaConvidado $ret
+            Registrar 'ETAPA RSAT TERMINOU. Se houver PENDENTE, nao compromete AD/PAW.'
+        }
+        'Validar' {
+            ConferirAmbiente $true
+            $v=Get-VM -Name $VM -ErrorAction Stop
+            $nic=Get-VMNetworkAdapterVlan -VMName $VM -VMNetworkAdapterName $NomeAdaptador -ErrorAction Stop
+            $fw=Get-VMFirmware -VMName $VM -ErrorAction Stop
+            $tpm=Get-VMTPM -VMName $VM -ErrorAction Stop
+            $mem=Get-VMMemory -VMName $VM -ErrorAction Stop
+            $hdd=Get-VHD -Path $DiscoOS -ErrorAction Stop
+            if ($v.Generation -ne 2 -or $nic.OperationMode -ne 'Access' -or $nic.AccessVlanId -ne 90) { throw 'Hyper-V Gen2/VLAN90 nao corresponde.' }
+            if ($fw.SecureBoot.ToString() -ne 'On' -or -not $tpm.Enabled) { throw 'Secure Boot/vTPM nao esta habilitado.' }
+            if (-not $mem.DynamicMemoryEnabled -or $mem.Minimum -lt 4GB -or $mem.Startup -lt 4GB -or $hdd.Size -lt 64GB) { throw 'Hardware abaixo do minimo Windows 11.' }
+            $cred=CredencialPAW
+            $dados=Invoke-Command -VMName $VM -Credential $cred -ArgumentList $GrupoPAW -ErrorAction Stop -ScriptBlock {
+                param([string]$Grupo)
+                $ErrorActionPreference='Stop'
+                $os=Get-CimInstance Win32_OperatingSystem
+                $c=Get-CimInstance Win32_ComputerSystem
+                if ($os.Caption -notmatch 'Windows 11' -or $os.Caption -match 'Home') { throw 'Windows 11 Pro nao identificado.' }
+                if ($c.Name -ne 'PAW-TI01' -or -not $c.PartOfDomain -or $c.Domain -ne 'smartfactory.corp') { throw 'Nome ou dominio incorreto.' }
+                if (-not (Test-ComputerSecureChannel -ErrorAction Stop)) { throw 'Canal seguro do dominio falhou.' }
+                $n=@(Get-NetAdapter | Where-Object Status -eq Up)
+                if ($n.Count -ne 1) { throw 'Esperado um adaptador de rede ativo.' }
+                $cfg=Get-NetIPConfiguration -InterfaceIndex $n[0].ifIndex
+                $ip=Get-NetIPAddress -InterfaceIndex $n[0].ifIndex -AddressFamily IPv4 |
+                    Where-Object IPAddress -eq '10.20.90.10' | Select-Object -First 1
+                if (-not $ip -or $ip.PrefixLength -ne 24 -or $ip.PrefixOrigin -eq 'Dhcp') { throw 'IP estatico incorreto na VLAN90.' }
+                $gateways=@($cfg.IPv4DefaultGateway | Select-Object -ExpandProperty NextHop)
+                if ('10.20.90.1' -notin $gateways) { throw 'Gateway incorreto.' }
+                $dns=@((Get-DnsClientServerAddress -InterfaceIndex $n[0].ifIndex -AddressFamily IPv4).ServerAddresses)
+                if ($dns.Count -ne 1 -or $dns[0] -ne '10.20.20.11') { throw 'DNS da PAW nao e apenas DC01.' }
+                $r=Resolve-DnsName -Name '_ldap._tcp.dc._msdcs.smartfactory.corp' -Type SRV -Server 10.20.20.11 -ErrorAction Stop
+                if (-not @($r | Where-Object Type -eq SRV).Count) { throw 'DNS SRV do AD ausente.' }
+                $g=Get-LocalGroup -SID ([Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')) -ErrorAction Stop
+                $alvo="SMARTFACTORY\$Grupo"
+                if (-not @(Get-LocalGroupMember -Group $g.Name | Where-Object Name -eq $alvo).Count) { throw 'Grupo PAW nao pertence a Administradores locais.' }
+                $perfis=@(Get-NetFirewallProfile -Profile Domain,Private,Public)
+                if (@($perfis | Where-Object { -not $_.Enabled -or $_.DefaultInboundAction -ne 'Block' }).Count) { throw 'Firewall desabilitado ou entrada nao bloqueada por padrao.' }
+                $rdp=(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server').fDenyTSConnections
+                if ($rdp -ne 1) { throw 'RDP inbound da PAW foi habilitado inesperadamente.' }
+                [pscustomobject]@{SO=$os.Caption;Hostname=$c.Name;Dominio=$c.Domain;IP=$ip.IPAddress;Gateway=$gateways -join ',';DNS=$dns -join ',';CanalSeguro='OK';Firewall='Ativo';RDPInbound='Bloqueado';GrupoPAW='OK'}
+            }
+            $dcCred=Get-Credential -Message 'SMARTFACTORY\Administrator no DC01 para conferir conta/OU de PAW'
+            $infos=Invoke-Command -VMName 'VM-DC01' -Credential $dcCred `
+                -ArgumentList $ContaAdmin,$GrupoPAW -ErrorAction Stop -ScriptBlock {
+                param([string]$Sam,[string]$Grupo)
+                $ErrorActionPreference='Stop'
+                Import-Module ActiveDirectory -ErrorAction Stop
+                $pc=Get-ADComputer -Identity 'PAW-TI01' -Properties DistinguishedName -ErrorAction Stop
+                if ($pc.DistinguishedName -notlike 'CN=PAW-TI01,OU=Computadores,OU=TI,OU=SmartFactory,*') { throw 'Objeto computador PAW em OU diferente.' }
+                $u=Get-ADUser -Identity $Sam -Properties LogonWorkstations,DistinguishedName -ErrorAction Stop
+                if ($u.LogonWorkstations -ne 'PAW-TI01') { throw 'Conta sem restricao de logon a PAW-TI01.' }
+                if ($u.DistinguishedName -notlike '*,OU=Usuarios,OU=TI,OU=SmartFactory,DC=smartfactory,DC=corp') { throw 'Conta adm.lab esta na OU incorreta.' }
+                $membros=@(Get-ADGroupMember -Identity $Grupo | Select-Object -ExpandProperty SamAccountName)
+                if ($Sam -notin $membros) { throw 'Conta adm.lab fora do grupo administrativo PAW.' }
+                if (@(Get-ADGroupMember 'Domain Admins' -Recursive | Where-Object SamAccountName -eq $Sam).Count) {
+                    throw 'SEGURANCA: adm.lab pertence a Domain Admins.'
+                }
+                [pscustomobject]@{Computador=$pc.DistinguishedName;Conta=$u.SamAccountName;OU=$u.DistinguishedName;LogonWorkstations=$u.LogonWorkstations;Grupo=$Grupo;DomainAdmin='Nao'}
+            }
+            SaidaConvidado $dados
+            SaidaConvidado $infos
+            Registrar 'VALIDACAO APROVADA: PAW, VLAN90, AD, conta dedicada, RDP inbound, firewall e seguranca Hyper-V.'
+            Registrar 'PENDENTES FASE FINAL: RDP real WEB/BKP, WinRM, SSH Wazuh, isolamento vs CLI-ADM01.'
+            Add-Content -LiteralPath $Relatorio -Encoding UTF8 -Value `
+                "`n## Validacao $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n- Infraestrutura da PAW e conta administrativa: APROVADAS pelo script.`n- Acessos administrativos aos servidores e bloqueios de clientes: PENDENTES de testes funcionais.`n- RSAT: opcional, verificar no Windows.`n"
+        }
+    }
+}
+catch {
+    Registrar "ERRO | Acao=$Acao | $($_.Exception.Message)"
+    throw
+}
+
