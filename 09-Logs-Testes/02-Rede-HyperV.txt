@@ -1,0 +1,36 @@
+﻿SMARTFACTORY - REDE HYPER-V
+Data: 11/02/2026 16:30:38
+
+=== SWITCHES ===
+
+Name           SwitchType
+----           ----------
+FIAP              Private
+Default Switch   Internal
+SF-LAN           Internal
+
+
+
+=== VLAN DO HOST ===
+
+
+VMName        : 
+VMId          : 
+AdapterName   : SF-LAN
+AdapterId     : Microsoft:BA565E1E-2F8A-46CA-82D6-70A0EB5F201F\2441EB5F-1295-4986-9A52-DA3C5977C19E
+OperationMode : Access
+AccessVlanId  : 10
+
+
+
+
+=== IPv4 SF-LAN ===
+
+ifIndex IPAddress   PrefixLength PrefixOrigin SuffixOrigin AddressState PolicyStore
+------- ---------   ------------ ------------ ------------ ------------ -----------
+45      10.20.10.10           24 Manual       Manual       Tentative    ActiveStore
+
+
+
+=== GATEWAYS SF-LAN ===
+

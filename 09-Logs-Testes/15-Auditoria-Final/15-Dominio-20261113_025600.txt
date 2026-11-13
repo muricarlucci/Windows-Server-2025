@@ -1,0 +1,2 @@
+﻿[2026-11-13 02:56:16] NAO_EXECUTADO | AD00 | Conexao PowerShell Direct DC01: A credencial é inválida.
+[2026-11-13 02:56:16] Verificacoes gravadas: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\15-Auditoria-Final\VERIFICACOES_TECNICAS.csv

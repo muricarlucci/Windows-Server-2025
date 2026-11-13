@@ -1,0 +1,7 @@
+﻿[2026-11-13 06:48:03] APROVADO | PAW01 | IP 10.20.90.10/24 estatico 
+[2026-11-13 06:48:04] APROVADO | PAW02 | Secure channel AD 
+[2026-11-13 06:48:04] APROVADO | PAW03 | Firewall local ativo 
+[2026-11-13 06:48:04] APROVADO | PAW04 | RDP recebido desabilitado na PAW 
+[2026-11-13 06:48:04] APROVADO | PAW05 | PAW -> DC01 WinRM 5985 Test-WSMan=True
+[2026-11-13 06:48:04] NAO_EXECUTADO | PAW06 | RDP real WEB/BKP e SSH Wazuh: Exige combinar VMs e, para NLA, autenticacao do dominio; verificar limitação RAM.
+[2026-11-13 06:48:04] Verificacoes gravadas: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\15-Auditoria-Final\VERIFICACOES_TECNICAS.csv

@@ -1,0 +1,15 @@
+﻿ROTEIRO — VÍDEO 04 | VLANs, FIREWALL, NAT E DHCP RELAY
+
+Nesta etapa, transformamos o pfSense instalado anteriormente no principal ponto de roteamento e controle de acesso da SmartFactory. Como o projeto possui vários departamentos e redes de segurança, optamos por automatizar a configuração para evitar cadastrar manualmente dezenas de interfaces e regras.
+
+O primeiro passo foi exportar o arquivo de configuração original do pfSense. Utilizamos esse backup como base para um script PowerShell gerar um novo XML, preservando as definições administrativas existentes. O script criou também uma cópia anterior, os logs, a documentação técnica, a matriz de requisitos e o roteiro da gravação. Assim, a alteração poderia ser auditada e revertida.
+
+No novo XML, configuramos treze VLANs etiquetadas: gerenciamento, servidores, Administração, RH, Financeiro, Engenharia, Produção, Logística, TI, DMZ, SOC, Backup e Visitantes. Cada rede recebeu seu gateway com prefixo 24. A VLAN de visitantes, identificada pelo número 999, utiliza a rede 10.20.200.0. A VLAN 99 ficou reservada como nativa, sem endereço IP e sem usuários.
+
+Depois, o script criou aliases para redes, servidores e portas de serviço, permitindo escrever regras de firewall de maneira mais organizada. Foram preparadas quarenta e sete regras, com permissões específicas para DNS, Active Directory, Kerberos, compartilhamentos SMB, intranet, monitoramento, administração privilegiada e backup. A lógica principal é negar a comunicação entre setores por padrão e liberar somente o tráfego necessário.
+
+Também criamos um grupo de interfaces para as VLANs de usuários, facilitando a aplicação das políticas comuns. O acesso administrativo foi restringido, com uma exceção para o host do laboratório e regras planejadas para a futura estação privilegiada PAW. Na DMZ, o objetivo é permitir os serviços indispensáveis ao servidor web sem abrir acesso livre às redes internas.
+
+Em seguida, restauramos o XML pelo painel do pfSense. Como a interface LAN passou a utilizar a VLAN 10 etiquetada, executamos uma segunda ação do mesmo PowerShell para modificar o trunk do Hyper-V e definir a VLAN 99 como nativa, recuperando o acesso administrativo.
+
+Por último, confirmamos o NAT automático de saída e configuramos o DHCP Relay nas oito redes de clientes, apontando para o futuro DC01, em 10.20.20.11. Executamos a validação do trunk e do HTTPS e registramos as telas do firewall. Os testes completos de bloqueio e permissão entre máquinas serão demonstrados quando os clientes e servidores estiverem disponíveis.

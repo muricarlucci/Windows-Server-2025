@@ -1,0 +1,15 @@
+﻿
+
+Host            : VM-DC01
+Service         : Running
+Manager         : 10.20.110.10
+OssecXml        : Valido
+FimPaths        : C:\Windows\SYSVOL\domain\Policies
+FirewallsAtivos : 3
+LocalLogs       : Configurados; coleta remota ainda nao testada
+PSComputerName  : VM-DC01
+RunspaceId      : b13c9e07-88b7-4143-8c30-a34da63e44e1
+
+
+
+

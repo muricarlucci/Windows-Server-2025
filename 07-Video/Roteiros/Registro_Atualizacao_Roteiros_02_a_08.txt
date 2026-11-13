@@ -1,0 +1,6 @@
+﻿SmartFactory - Atualizacao de roteiros
+Data: 2026-11-10 10:33:59
+Videos atualizados: 02, 03, 04, 05, 06, 07, 08
+Destino: D:\FIAP\WINDOWS\SmartFactory-GS\07-Video\Roteiros
+Originais preservados: D:\FIAP\WINDOWS\SmartFactory-GS\07-Video\Roteiros\Backup-Roteiros-Anteriores\20261110_103359_312
+Os roteiros devem ser ajustados caso alguma operacao nao tenha sido executada no laboratorio.

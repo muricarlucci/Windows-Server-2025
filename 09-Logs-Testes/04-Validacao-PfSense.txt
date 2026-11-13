@@ -1,0 +1,69 @@
+﻿SMARTFACTORY - VALIDACAO DA VM-FW01
+Data: 2026-11-09 02:01:18
+
+=== MAQUINA VIRTUAL ===
+Nome: VM-FW01
+Estado: Off
+Geracao: 2
+CPUs virtuais: 2
+RAM inicial (GB): 2
+Memoria dinamica: False
+Secure Boot: Off
+
+=== INTERFACE DO HOST ===
+IP: 10.20.10.10
+Prefixo: 24
+Estado: Preferred
+
+=== CONECTIVIDADE ===
+HTTPS pfSense (10.20.10.1): False
+Internet do WINDOWS: True
+OBS: o teste externo nao comprova Internet na WAN do pfSense.
+
+=== ADAPTADORES VIRTUAIS ===
+
+Name SwitchName     MacAddress  
+---- ----------     ----------  
+WAN  Default Switch 00155D00D801
+LAN  SF-LAN         00155D00D802
+
+
+
+
+=== CONFIGURACAO DE VLAN ===
+
+
+VMName        : VM-FW01
+VMId          : 95dcec7a-95d9-44fa-b249-dc4229ea1aa8
+AdapterName   : WAN
+AdapterId     : Microsoft:95DCEC7A-95D9-44FA-B249-DC4229EA1AA8\9490E0E1-7D12-4BD5-AB5B-3321F9ABF229
+OperationMode : Untagged
+
+VMName            : VM-FW01
+VMId              : 95dcec7a-95d9-44fa-b249-dc4229ea1aa8
+AdapterName       : LAN
+AdapterId         : Microsoft:95DCEC7A-95D9-44FA-B249-DC4229EA1AA8\FF6190E5-8183-4016-8CD2-485FB18B7BDE
+OperationMode     : Trunk
+NativeVlanId      : 10
+AllowedVlanIdList : 10,20,30,40,50,60,70,80,90,100,110,120,999
+
+
+
+
+
+=== DISCOS VIRTUAIS ===
+
+ControllerType Path                                                          
+-------------- ----                                                          
+          SCSI D:\FIAP\WINDOWS\SmartFactory-GS\02-VMs\VM-FW01\VM-FW01-SO.vhdx
+
+
+
+
+=== VALIDACAO MANUAL PENDENTE ===
+1. Confirmar acesso e login no painel web.
+2. Confirmar WAN IPv4 e conectividade do pfSense.
+3. Confirmar LAN 10.20.10.1/24.
+4. Confirmar DHCP desabilitado na LAN.
+5. Confirmar alteracao da senha administrativa.
+6. Registrar a versao instalada do pfSense CE.

@@ -1,0 +1,13 @@
+﻿Nesta etapa, criamos a PAW-TI01, a estacao de administracao privilegiada da SmartFactory. O objetivo e separar tarefas de gerenciamento das atividades comuns dos funcionarios, reduzindo o risco de expor credenciais administrativas em computadores de uso diario.
+
+Primeiro, avaliamos o consumo de memoria do laboratorio. Mantivemos ligados somente o firewall FW01 e o controlador de dominio DC01 e desligamos as demais maquinas virtuais. O DC01 permaneceu com memoria dinamica. Em seguida, o script verificou o switch SF-LAN, os recursos disponiveis e a estrutura de pastas, criando automaticamente o relatorio, o log e este roteiro.
+
+Na criacao da PAW, o PowerShell provisionou uma maquina Hyper-V de Geracao 2, com duas CPUs virtuais, disco VHDX dinamico de oitenta gigabytes e memoria dinamica a partir de quatro gigabytes. Tambem habilitou Secure Boot e TPM virtual, conforme os requisitos do Windows 11, e configurou o adaptador em modo Access na VLAN 90. Por fim, instalamos o Windows 11 Pro e criamos uma conta administrativa local.
+
+Com a instalacao concluida, utilizamos PowerShell Direct para configurar automaticamente o nome PAW-TI01 e o IP estatico dez ponto vinte ponto noventa ponto dez, com gateway dez ponto vinte ponto noventa ponto um e DNS apontando para o DC01. Diferentemente da estacao de Administracao, a PAW nao depende do DHCP, porque seu endereco e reservado nas regras do firewall.
+
+Depois, criamos no Active Directory uma conta administrativa nominal de laboratorio, adm.lab, e o grupo global GG_PAW_Administradores. Essa conta nao foi adicionada a Domain Admins. O dominio passou a restringir seu logon a PAW-TI01, e o grupo recebeu privilegio de administrador local somente na estacao protegida. Na sequencia, ingressamos a PAW no dominio smartfactory.corp, dentro da OU de computadores de TI.
+
+A etapa de protecao confirmou o firewall do Windows habilitado com bloqueio de entrada por padrao e desabilitou o recebimento de conexoes RDP na propria PAW. Mantivemos ferramentas como Remote Desktop e PowerShell para iniciar conexoes administrativas de saida, sem habilitar servicos desnecessarios de entrada. O script tambem oferece a instalacao opcional das ferramentas RSAT, dependendo da disponibilidade do Windows Update.
+
+Finalizamos validando a VLAN, o IP, o canal seguro com o Active Directory, a conta e o grupo administrativo, os recursos de seguranca e os registros no dominio. O acesso real por RDP a WEB01 e BKP01, por WinRM aos servidores e, posteriormente, por SSH ao Wazuh sera comprovado quando realizarmos a bateria final de testes com os destinos ligados.

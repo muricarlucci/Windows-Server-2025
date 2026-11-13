@@ -1,0 +1,2 @@
+﻿[2026-11-13 05:43:13] NAO_EXECUTADO | BKP00 | PowerShell Direct BKP01: Não é possível associar o argumento ao parâmetro 'Credential' porque ele é nulo.
+[2026-11-13 05:43:13] Verificacoes gravadas: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\15-Auditoria-Final\VERIFICACOES_TECNICAS.csv

@@ -1,0 +1,9 @@
+﻿[2026-11-13 05:09:14] APROVADO | WEB01 | IIS site SF-Intranet presente 
+[2026-11-13 05:09:14] APROVADO | WEB02 | Diretorio real da intranet 
+[2026-11-13 05:09:14] APROVADO | WEB03 | Binding HTTPS presente 
+[2026-11-13 05:09:14] APROVADO | WEB04 | ApplicationPool SF-Intranet-Pool Started 
+[2026-11-13 05:09:14] APROVADO | WEB05 | WindowsAuth ligado e anonimo desligado 
+[2026-11-13 05:09:14] APROVADO | WEB06 | Certificado local intranet 
+[2026-11-13 05:09:14] APROVADO | WEB07 | Regras locais da intranet 
+[2026-11-13 05:09:14] NAO_EXECUTADO | WEB08 | HTTP 301, TLS negociado, login Kerberos: Exige teste HTTP real de um cliente com DC; validar no roteiro.
+[2026-11-13 05:09:14] Verificacoes gravadas: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\15-Auditoria-Final\VERIFICACOES_TECNICAS.csv

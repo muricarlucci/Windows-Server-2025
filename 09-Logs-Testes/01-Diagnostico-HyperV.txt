@@ -1,0 +1,72 @@
+﻿SMARTFACTORY - DIAGNOSTICO HYPER-V
+Data: 11/02/2026 16:25:45
+
+=== WINDOWS ===
+Microsoft Windows 11 Pro
+Build: 26200
+
+=== RECURSOS HYPER-V ===
+
+FeatureName                               State
+-----------                               -----
+Microsoft-Hyper-V-All                   Enabled
+Microsoft-Hyper-V                       Enabled
+Microsoft-Hyper-V-Tools-All             Enabled
+Microsoft-Hyper-V-Management-PowerShell Enabled
+Microsoft-Hyper-V-Hypervisor            Enabled
+Microsoft-Hyper-V-Services              Enabled
+Microsoft-Hyper-V-Management-Clients    Enabled
+
+
+
+=== SERVICOS ===
+
+Name       Status StartType
+----       ------ ---------
+vmcompute Running    Manual
+vmms      Running Automatic
+
+
+
+=== HOST HYPER-V ===
+
+
+ComputerName        : MURI
+VirtualHardDiskPath : C:\ProgramData\Microsoft\Windows\Virtual Hard Disks
+VirtualMachinePath  : C:\ProgramData\Microsoft\Windows\Hyper-V
+
+
+
+
+=== SWITCHES EXISTENTES ===
+
+Name           SwitchType NetAdapterInterfaceDescription
+----           ---------- ------------------------------
+FIAP              Private                               
+Default Switch   Internal                               
+
+
+
+=== ENDERECOS IPv4 ===
+
+InterfaceAlias              IPAddress       PrefixLength
+--------------              ---------       ------------
+Radmin VPN                  26.77.137.151              8
+vEthernet (Default Switch)  172.18.144.1              20
+Ethernet 2                  169.254.163.123           16
+Ethernet                    192.168.0.216             24
+Loopback Pseudo-Interface 1 127.0.0.1                  8
+
+
+
+=== ROTAS PRIVADAS ===
+
+=== ARMAZENAMENTO ===
+
+Name LivreGB
+---- -------
+C       41,4
+D      155,6
+
+
+

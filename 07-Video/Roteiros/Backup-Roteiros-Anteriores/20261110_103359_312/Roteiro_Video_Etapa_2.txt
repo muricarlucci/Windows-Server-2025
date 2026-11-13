@@ -1,0 +1,7 @@
+Nesta etapa, preparamos a infraestrutura de virtualização da SmartFactory utilizando o Hyper-V do Windows 11 Pro.
+
+Criamos o switch virtual interno SF-LAN, responsável pela comunicação entre as máquinas virtuais da rede corporativa, sem modificar a conexão física do computador.
+
+Também configuramos a interface de gerenciamento do host na VLAN 10, com endereço IP 10.20.10.10 e máscara /24.
+
+Toda a configuração foi automatizada por PowerShell. Ao final, verificamos a criação do switch, a atribuição da VLAN e o endereçamento IP, registrando os resultados para a documentação do projeto.

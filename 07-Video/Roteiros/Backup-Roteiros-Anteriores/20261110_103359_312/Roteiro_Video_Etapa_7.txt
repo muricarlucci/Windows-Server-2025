@@ -1,0 +1,9 @@
+﻿Nesta etapa, implementamos a intranet da SmartFactory na maquina virtual VM-WEB01, localizada na VLAN 100, que e a nossa DMZ interna.
+
+Criamos o Windows Server 2025 Standard com Desktop Experience, utilizando memoria dinamica para reduzir o consumo de RAM do computador. Configuramos IP fixo, DNS corporativo e ingressamos o servidor no dominio smartfactory.corp.
+
+Depois, instalamos o IIS, criamos o site intranet.smartfactory.corp com HTTPS na porta 443 e um certificado para o ambiente de laboratorio. A porta HTTP 80 foi configurada somente para redirecionar os acessos para HTTPS.
+
+Tambem habilitamos a autenticacao integrada do Windows, preparamos o Kerberos por meio do registro SPN no Active Directory e isolamos a aplicacao em seu proprio Application Pool. O DNS recebeu o alias da intranet.
+
+Por fim, verificamos os servicos e registramos as evidencias. O acesso de um cliente real e a negociacao Kerberos serao comprovados quando instalarmos a estacao de testes, sem afirmar que esses testes ja foram realizados.

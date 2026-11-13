@@ -1,0 +1,15 @@
+﻿ROTEIRO — VÍDEO 05 | DC01, ACTIVE DIRECTORY, DNS E DHCP
+
+Nesta etapa, instalamos o primeiro servidor Windows da SmartFactory, o VM-DC01. Ele concentra os serviços de identidade e resolução de nomes da rede e, na versão reduzida do laboratório, também o DHCP corporativo. O projeto original previa dois controladores de domínio, mas mantivemos apenas um para respeitar a memória disponível no computador.
+
+Começamos pelo script de preparação, que verificou as dependências do Hyper-V e organizou relatório, checklist, logs, evidências e roteiro. Depois, executamos a criação da VM com Windows Server 2025, duas CPUs virtuais, quatro gigabytes de memória inicialmente configurada e disco dinâmico de sessenta gigabytes. O adaptador foi associado ao SF-LAN em modo Access, na VLAN 20, destinada aos servidores.
+
+A instalação do sistema operacional foi realizada pela console do Hyper-V, escolhendo Windows Server 2025 Standard em modo Server Core. Após definir a senha local, utilizamos o PowerShell Direct para configurar o nome VM-DC01, o endereço 10.20.20.11, o gateway 10.20.20.1 e o DNS apontando para o próprio servidor. O Windows reiniciou para aplicar as alterações.
+
+Na sequência, o script instalou os serviços Active Directory Domain Services e DNS e promoveu o servidor a primeiro controlador de domínio da floresta smartfactory.corp. Configuramos o nome NetBIOS SMARTFACTORY e os níveis funcionais Windows Server 2025. Durante a promoção, também definimos a senha de recuperação DSRM, que não é exibida nas gravações.
+
+Depois da reinicialização, a automação configurou o DNS integrado ao Active Directory. Foram conferidas a zona direta smartfactory.corp, a zona reversa do bloco 10.20.0.0/16, os registros do controlador de domínio, as atualizações dinâmicas seguras e os encaminhadores públicos para consultas externas.
+
+Em seguida, criamos a estrutura organizacional do domínio: OUs departamentais, infraestrutura, servidores membros, servidores da DMZ e uma OU de piloto para políticas futuras. O script também cadastrou vinte e um grupos de segurança no modelo AGDLP, separando grupos globais de usuários e grupos locais de permissões para os recursos compartilhados.
+
+Por último, instalamos e autorizamos o DHCP no Active Directory. Foram criados oito escopos para Administração, RH, Financeiro, Engenharia, Produção, Logística, TI e Visitantes, com exclusões, gateway, DNS e tempos de concessão próprios. A rotina final verificou o domínio, o DNS, as OUs, os grupos e os escopos. A concessão real de IP aos clientes será demonstrada após instalar uma estação na rede.

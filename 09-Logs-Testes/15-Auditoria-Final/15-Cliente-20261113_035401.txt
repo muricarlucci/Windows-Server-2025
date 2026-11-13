@@ -1,0 +1,2 @@
+﻿[2026-11-13 03:54:19] NAO_EXECUTADO | CLI00 | PowerShell Direct CLI-ADM01: A credencial é inválida.
+[2026-11-13 03:54:19] Verificacoes gravadas: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\15-Auditoria-Final\VERIFICACOES_TECNICAS.csv

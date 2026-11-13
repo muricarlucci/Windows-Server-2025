@@ -1,0 +1,22 @@
+﻿[2026-11-13 02:57:37] APROVADO | AD01 | Dominio smartfactory.corp smartfactory.corp
+[2026-11-13 02:57:37] APROVADO | AD02 | NetBIOS SMARTFACTORY 
+[2026-11-13 02:57:37] APROVADO | AD03 | Nivel funcional 2025 Dominio=Windows2025Domain Floresta=Windows2025Forest
+[2026-11-13 02:57:37] APROVADO | AD04 | Zona DNS integrada smartfactory.corp 
+[2026-11-13 02:57:37] APROVADO | AD05 | Zona DNS reversa /16 
+[2026-11-13 02:57:37] APROVADO | AD06 | 8 escopos DHCP ativos/configurados 10.20.30.0,10.20.40.0,10.20.50.0,10.20.60.0,10.20.70.0,10.20.80.0,10.20.90.0,10.20.200.0
+[2026-11-13 02:57:37] APROVADO | AD07 | SYSVOL/NETLOGON 
+[2026-11-13 02:57:37] APROVADO | AD08 | OUs Infraestrutura, SmartFactory, Piloto_GPO 
+[2026-11-13 02:57:37] APROVADO | AD09 | GPO Endpoint, Audit, LAPS 
+[2026-11-13 02:57:37] APROVADO | AD10 | LAPS criptografado CLI-ADM01 existe no AD 
+[2026-11-13 02:57:37] FALHOU | AD11 | DCDIAG sem erros (modo /q) An error event occurred.  EventID: 0xC0000007
+
+            Time Generated: 11/13/2026   02:53:21
+
+            Event String:
+
+            The Security Account Manager failed a KDC request in an unexpected way. The error is in the data field. The account name was  and lookup type 0x108.
+
+         ......................... VM-DC01 failed test 
+[2026-11-13 02:57:37] NAO_EXECUTADO | AD12 | Replicacao AD/DC failover: Nao existe DC02 na topologia reduzida.
+[2026-11-13 02:57:37] NAO_EXECUTADO | AD13 | LAPS autorizado/negado e rotacao: Testes T13-T15 requerem usuarios/credenciais adequados; nao exportar senhas.
+[2026-11-13 02:57:37] Verificacoes gravadas: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\15-Auditoria-Final\VERIFICACOES_TECNICAS.csv

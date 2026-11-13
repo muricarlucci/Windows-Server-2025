@@ -1,0 +1,8 @@
+﻿[2026-11-13 05:42:39] APROVADO | BKP01 | Repositorio B:\Repositorio e NTFS 
+[2026-11-13 05:42:39] APROVADO | BKP02 | Compartilhamento backup criptografado 
+[2026-11-13 05:42:39] APROVADO | BKP03 | Ao menos um snapshot FILE01 Snapshots=1
+[2026-11-13 05:42:39] APROVADO | BKP04 | Ao menos uma restauracao teste Pastas=1
+[2026-11-13 05:42:39] NAO_EXECUTADO | BKP05 | Hash SHA256 do teste T28: Comparar origens e restauracao, documentar ambas as hashes sem revelar dados privados.
+[2026-11-13 05:42:39] APROVADO | BKP06 | Arquivo SystemState DC01 catalogado Pastas=1
+[2026-11-13 05:42:39] NAO_EXECUTADO | BKP07 | Restore real System State: Nao executar no unico DC01. Cópia de backup != restore.
+[2026-11-13 05:42:39] Verificacoes gravadas: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\15-Auditoria-Final\VERIFICACOES_TECNICAS.csv

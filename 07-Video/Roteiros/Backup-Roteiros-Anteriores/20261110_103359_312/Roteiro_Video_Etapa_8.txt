@@ -1,0 +1,9 @@
+﻿Nesta etapa, implementamos o servidor de backup da SmartFactory, chamado VM-BKP01, isolado na VLAN 120.
+
+Criamos a maquina virtual com Windows Server 2025, memoria dinamica e um disco separado para o repositorio. Ingressamos o servidor no dominio smartfactory.corp e configuramos o armazenamento e o compartilhamento administrativo protegido.
+
+Como nosso computador possui apenas 16 gigabytes de RAM, executamos a copia dos arquivos do FILE01 com as maquinas desligadas, lendo o VHDX de dados em modo somente leitura. Isso permitiu preservar uma copia datada sem precisar executar quatro servidores ao mesmo tempo.
+
+Tambem preparamos o backup do estado do sistema do controlador de dominio usando o Windows Server Backup. Depois validamos a recuperacao de um arquivo em um destino de testes, comparando o hash SHA256 para comprovar sua integridade.
+
+A arquitetura corporativa continua prevendo retencao 3-2-1 e copia externa imutavel, mas essa protecao ainda depende de armazenamento fisicamente independente. Por fim, registramos os testes, as limitacoes e as evidencias do laboratorio.

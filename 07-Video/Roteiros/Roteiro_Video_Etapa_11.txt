@@ -1,0 +1,19 @@
+﻿Nesta etapa, implementamos a infraestrutura de monitoramento e detecção da SmartFactory utilizando o Wazuh em um servidor Ubuntu Linux. A plataforma centraliza eventos de segurança, aplica regras de detecção e prepara o acompanhamento dos servidores e estações Windows do laboratório.
+
+Primeiro, fizemos uma avaliação de recursos no Hyper-V. Como o computador possui apenas dezesseis gigabytes de memória, desligamos o controlador de domínio, os servidores de arquivos, web e backup e as estações Windows. Mantivemos o firewall FW01 ligado para fornecer roteamento e Internet. Para a instalação funcionar sem o DC01 ligado, configuramos uma autorização DNS restrita ao IP do Wazuh no pfSense. Não liberamos a VLAN de monitoramento inteira para administrar a rede.
+
+**Mesmo assim, ficamos no limite da memória e precisamos retirar meio gigabyte tanto do firewall quanto do Wazuh, reduzindo a margem de recursos disponíveis para conseguir executar as duas máquinas simultaneamente.**
+
+Na preparação, o script criou as pastas de documentação, o checklist, o log, o roteiro e o registro da configuração prevista. Depois, provisionou a VM-WAZUH01 como máquina de Geração 2, com quatro CPUs, inicialmente oito gigabytes de memória estática, Secure Boot compatível com Linux e adaptador em modo Access na VLAN cento e dez. Criamos um disco de quarenta gigabytes para o sistema operacional e outro de oitenta gigabytes para os índices. Os VHDX são dinâmicos, economizando espaço físico até que os dados sejam gravados.
+
+Instalamos o Ubuntu Server vinte e quatro ponto zero quatro no disco de sistema, sem ambiente gráfico, com endereço dez ponto vinte ponto cento e dez ponto dez e gateway final um. Utilizamos também um pequeno disco FAT32 gerado pelo PowerShell para transportar o script Linux, evitando comandos longos copiados manualmente e acessos SSH indevidos pelo Windows hospedeiro.
+
+Em seguida, o script do Ubuntu atualizou as dependências, conferiu a rede, identificou com segurança o disco de oitenta gigabytes e montou esse volume como armazenamento exclusivo do indexador. Configurou o limite de mapeamento de memória necessário e executou o instalador oficial Wazuh da série quatro ponto quatorze no modo all-in-one. Isso implantou o Wazuh Manager, responsável por analisar eventos e disparar alertas, o Indexer, que armazena e consulta os dados, o Dashboard HTTPS e o Filebeat, que encaminha os registros para indexação.
+
+**Durante a instalação, encontramos um erro de detecção de uma instalação anterior do Indexer. Investigamos o problema e executamos novamente o instalador oficial, corrigindo a falha e concluindo a implantação dos quatro componentes.**
+
+Depois, aplicamos o firewall local UFW. As portas de agentes quinze quatorze e quinze quinze foram permitidas somente para redes corporativas; SSH e Dashboard ficaram restritos à PAW-TI01. Já a API administrativa e a API do Indexer não foram publicadas. As credenciais geradas permaneceram guardadas exclusivamente no Ubuntu, sem aparecer nos logs compartilhados.
+
+Finalizamos conferindo os quatro serviços, o HTTPS local, os volumes, a memória e as regras de firewall, exportando um relatório técnico sem segredos. A instalação dos agentes Windows, a coleta de Sysmon, a verificação de integridade, as avaliações de configuração e os alertas correlacionados serão comprovados na fase de telemetria e na bateria final de testes.
+
+**Por fim, também enfrentamos uma limitação crítica de armazenamento: o disco D chegou a apenas cinco gigabytes livres. Precisamos desinstalar jogos e liberar aproximadamente sessenta gigabytes para continuar o projeto. Isso demonstrou como estamos trabalhando praticamente no limite do hardware disponível.**

@@ -1,0 +1,17 @@
+﻿ROTEIRO — VÍDEO 07 | WEB01, IIS, HTTPS E INTRANET
+
+Nesta etapa, implantamos o servidor WEB01, responsável pela intranet da SmartFactory. Ele fica na VLAN 100, nossa DMZ interna, separada das redes dos funcionários. Como o computador hospedeiro possui pouca memória, desligamos as máquinas que não eram necessárias e criamos o WEB01 com memória dinâmica.
+
+Começamos executando o script de preparação e provisionamento no Hyper-V. Ele criou a VM de Geração 2, com duas CPUs virtuais, disco dinâmico de oitenta gigabytes e adaptador em modo Access na VLAN 100. Instalamos o Windows Server 2025 Standard com Desktop Experience, diferentemente do DC01 e do FILE01, que utilizam Server Core. Depois, automatizamos o nome VM-WEB01 e o endereço 10.20.100.10, utilizando o DC01 como DNS.
+
+Na sequência, o script ingressou o servidor no domínio smartfactory.corp e moveu seu objeto para a OU de servidores web da infraestrutura. Após as reinicializações necessárias, executamos a ação principal de configuração do IIS.
+
+Essa ação instalou o servidor web e os módulos de autenticação Windows, redirecionamento HTTP, conteúdo estático e ferramentas de administração. Depois, criou o diretório da intranet e uma página HTML demonstrativa com seções de comunicados, Recursos Humanos e segurança. Também criou um Application Pool próprio, utilizando ApplicationPoolIdentity, para separar o processo da aplicação de outros serviços do Windows.
+
+Em seguida, foram configurados dois sites. O primeiro publica a intranet em HTTPS, na porta 443, com o nome intranet.smartfactory.corp e um certificado autoassinado RSA de 2048 bits. O segundo utiliza a porta 80 somente para redirecionar o navegador para HTTPS, com resposta permanente 301.
+
+No site protegido, a autenticação anônima foi desabilitada e a autenticação integrada do Windows foi habilitada, preparando o acesso com credenciais do Active Directory. O script também criou regras de firewall local permitindo HTTP e HTTPS apenas das VLANs corporativas 30 a 90. O RDP foi preparado com autenticação de nível de rede, ou NLA, e regra restrita ao futuro computador administrativo PAW-TI01.
+
+Por fim, registramos no DNS do DC01 o nome do servidor e o alias CNAME intranet.smartfactory.corp. No Active Directory, configuramos o SPN HTTP desse endereço na conta do WEB01, necessário para a autenticação Kerberos pelo nome do portal.
+
+Encerramos com a validação de sites, certificado, pool, autenticação, DNS, SPN e regras. A prova de acesso com um usuário real, a negociação Kerberos e o bloqueio de tráfego indevido da DMZ ficarão para a bateria final de testes.

@@ -1,0 +1,35 @@
+﻿2026-11-10 15:52:07 | Disco D: livre 44,1 GiB
+2026-11-10 15:52:07 | Host RAM fisica livre agora: 7,3 GiB
+2026-11-10 15:52:07 | FW01: RAM atribuida 2,0 GiB
+2026-11-10 15:52:07 | ETAPA 10 PREPARADA: FW01 Running; todas as outras VMs Off; Wazuh 8 GiB estatico recomendado.
+2026-11-10 15:52:07 | Roteiro: D:\FIAP\WINDOWS\SmartFactory-GS\07-Video\Roteiros\Roteiro_Video_Etapa_11.txt
+2026-11-10 15:52:07 | Relatorio: D:\FIAP\WINDOWS\SmartFactory-GS\00-Documentacao\10-WAZUH01-SIEM-AllInOne.md
+2026-11-10 15:52:07 | ANTES de CriarVM, liberar DNS do 10.20.110.10 no DNS Resolver pfSense e regra em SECURITY_SOC.
+2026-11-10 15:53:24 | Disco D: livre 44,1 GiB
+2026-11-10 15:53:24 | Host RAM fisica livre agora: 7,0 GiB
+2026-11-10 15:53:24 | FW01: RAM atribuida 2,0 GiB
+2026-11-10 15:53:33 | Script Linux gerado: D:\FIAP\WINDOWS\SmartFactory-GS\03-Scripts\Gerados-WAZUH\01-Instalar-Configurar-Wazuh.sh
+2026-11-10 15:53:39 | SFSETUP FAT32 preparado: F:\
+2026-11-10 15:53:39 | VM CRIADA: 4 vCPU, 8 GiB ESTATICOS, Ubuntu, 40G OS, 80G Indexer, 256M FAT32, VLAN110.
+2026-11-10 15:53:39 | INSTALE Ubuntu somente no VHDX de 40 GiB; NAO FORMATE 80 GiB nem SFSETUP.
+2026-11-10 15:53:39 | Durante instalacao Ubuntu configure DNS 10.20.110.1 (resolver pfSense) e IP 10.20.110.10/24.
+2026-11-10 15:55:19 | Disco D: livre 44,1 GiB
+2026-11-10 15:55:20 | Host RAM fisica livre agora: 6,8 GiB
+2026-11-10 15:55:20 | FW01: RAM atribuida 2,0 GiB
+2026-11-10 15:55:20 | VM estado: Off; 4vCPU: True
+2026-11-10 15:55:20 | RAM dinamica: False; startup GiB: 8
+2026-11-10 15:55:20 | VLAN: 110; Secure Boot: On template: MicrosoftUEFICertificateAuthority
+2026-11-10 15:55:20 | Discos VHDX: 3
+2026-11-10 15:55:20 | VALIDACAO HOST APROVADA. Status de Manager/Indexer/Dashboard requer validacao no Ubuntu.
+2026-11-12 18:56:50 | Disco D: livre 41,2 GiB
+2026-11-12 18:56:50 | Host RAM fisica livre agora: 8,1 GiB
+2026-11-12 18:56:50 | FW01: RAM atribuida 1,5 GiB
+2026-11-12 18:56:51 | VM estado: Off; 4vCPU: True
+2026-11-12 18:56:51 | RAM dinamica: False; startup GiB: 7.5
+2026-11-12 18:56:51 | VLAN: 110; Secure Boot: On template: MicrosoftUEFICertificateAuthority
+2026-11-12 18:56:51 | Discos VHDX: 3
+2026-11-12 21:20:23 | Disco D: livre 5,3 GiB
+2026-11-12 21:20:23 | ALERTA: menos de 40 GiB livres. Nao gerar 90 dias de retencao sem ampliar espaco.
+2026-11-12 21:20:23 | Host RAM fisica livre agora: 9,3 GiB
+2026-11-12 21:20:23 | FW01: RAM atribuida 1,5 GiB
+2026-11-12 21:20:26 | RELATORIO LINUX COLETADO: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\12-WAZUH01-Resultado-Linux.txt

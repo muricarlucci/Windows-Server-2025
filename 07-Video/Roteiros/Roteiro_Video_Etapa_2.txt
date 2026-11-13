@@ -1,0 +1,15 @@
+﻿ROTEIRO — VÍDEO 02 | PREPARAÇÃO DA REDE HYPER-V
+
+Nesta etapa, começamos a montar a rede virtual da SmartFactory, que será utilizada por todas as máquinas do projeto. Antes de instalar os servidores, era necessário definir como eles se comunicariam entre si e como o computador hospedeiro conseguiria administrar o ambiente sem interferir na rede física.
+
+Primeiro, utilizamos um script PowerShell para conferir a instalação do Hyper-V, os adaptadores disponíveis e os switches que já existiam. Essa verificação inicial evita modificar por engano o Default Switch ou outras redes do Windows. Também organizamos as pastas de documentação, scripts, máquinas virtuais, logs e evidências, para que cada etapa do projeto tenha seus arquivos identificados.
+
+Depois, o script de preparação criou o switch virtual interno SF-LAN. Escolhemos o tipo Internal porque ele permite a comunicação entre as máquinas virtuais e o próprio Windows hospedeiro. Diferentemente de um switch externo, ele não precisa estar ligado diretamente à placa física. O acesso de saída para a Internet será controlado mais adiante pelo nosso firewall pfSense.
+
+Na interface virtual criada no Windows, configuramos o endereço 10.20.10.10 com prefixo 24. Esse endereço identifica o computador hospedeiro na rede de gerenciamento, que é a VLAN 10. Também configuramos o adaptador virtual do host em modo Access, associado à VLAN 10, para que o tráfego dessa interface fique identificado corretamente dentro do Hyper-V.
+
+Outro cuidado foi não alterar a configuração dos adaptadores de rede físicos nem apagar switches que já existiam. Esse isolamento é importante porque toda a SmartFactory está sendo reproduzida em um único computador, com recursos limitados, e não podemos comprometer a conexão normal do sistema operacional.
+
+Ao final, executamos as verificações de rede pelo PowerShell, conferindo a existência do SF-LAN, seu tipo, a VLAN atribuída à interface do host e o endereço IP configurado. Os resultados foram registrados automaticamente no arquivo de log, que depois será utilizado no relatório técnico.
+
+Essa etapa não instalou os serviços de domínio nem criou ainda as redes dos departamentos. Ela preparou a base de comunicação do laboratório. Com a SF-LAN pronta, pudemos passar para a criação da primeira máquina virtual, a FW01, responsável pelo firewall e pelo roteamento entre as VLANs.

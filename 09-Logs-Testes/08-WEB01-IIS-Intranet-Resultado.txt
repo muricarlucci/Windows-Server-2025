@@ -1,0 +1,75 @@
+﻿2026-11-10 07:13:59 | INICIO Etapa 06 / Acao Preparar
+2026-11-10 07:14:00 | VMs: Name        State MemoryAssigned MemoryDemand | ----        ----- -------------- ------------ | VM-DC01   Running     2684354560   1476395008 | VM-FILE01     Off              0            0 | VM-FW01   Running     2147483648            0
+2026-11-10 07:14:00 | DC01 RAM: Dinamica=True; Inicial=4096MB; Min=2560MB; Max=4096MB
+2026-11-10 07:14:01 | Host RAM disponivel=4 GB; D: disponivel=137.8 GB
+2026-11-10 07:14:01 | ISOs candidatas do Windows Server: 3
+2026-11-10 07:14:01 | ISO: D:\FIAP\WINDOWS\SmartFactory-GS\01-ISOs\26100.32230.260111-0550.lt_release_svc_refresh_SERVER_EVAL_x64FRE_en-us-novo.iso
+2026-11-10 07:14:01 | ISO: D:\FIAP\WINDOWS\SmartFactory-GS\01-ISOs\26100.32230.260111-0550.lt_release_svc_refresh_SERVER_EVAL_x64FRE_en-us.iso
+2026-11-10 07:14:01 | ISO: D:\FIAP\WINDOWS\SmartFactory-GS\01-ISOs\ubuntu-26.04.1-live-server-amd64.iso
+2026-11-10 07:14:01 | PREPARACAO CONCLUIDA. Roteiro: D:\FIAP\WINDOWS\SmartFactory-GS\07-Video\Roteiros\Roteiro_Video_Etapa_7.txt
+2026-11-10 07:17:13 | INICIO Etapa 06 / Acao CriarVM
+2026-11-10 07:17:20 | VM CRIADA: VM-WEB01; Gen2; 2vCPU; RAM dinamica 2/3/4GB; VHDX 80GB; VLAN100
+2026-11-10 07:17:20 | ISO: D:\FIAP\WINDOWS\SmartFactory-GS\01-ISOs\26100.32230.260111-0550.lt_release_svc_refresh_SERVER_EVAL_x64FRE_en-us-novo.iso
+2026-11-10 07:17:20 | Agora inicie VM-WEB01 e instale Windows Server 2025 STANDARD (DESKTOP EXPERIENCE).
+2026-11-10 07:47:18 | INICIO Etapa 06 / Acao ConfigurarBase
+2026-11-10 07:48:58 | GUEST | OS=Microsoft Windows Server 2025 Standard Evaluation; IP=10.20.100.10/24; GW=10.20.100.1; DNS=10.20.20.11; LDAP-DC=True; RENOMEADO=True
+2026-11-10 07:48:58 | GUEST | REINICIO AGENDADO EM 15 SEGUNDOS. AGUARDE VOLTAR AO LOGIN.
+2026-11-10 07:48:58 | BASE CONFIGURADA. Se nome mudou, aguarde reboot antes de ingressar no dominio.
+2026-11-10 07:53:23 | INICIO Etapa 06 / Acao IngressarDominio
+2026-11-10 07:54:56 | GUEST | INGRESSO NO DOMINIO CONCLUIDO. Reinicio em 15 segundos.
+2026-11-10 07:54:56 | Aguarde reboot; nas proximas etapas informe SMARTFACTORY\Administrator.
+2026-11-10 08:02:08 | INICIO Etapa 06 / Acao ConfigurarIIS
+2026-11-10 08:02:19 | ERRO: A credencial é inválida.
+2026-11-10 08:02:35 | INICIO Etapa 06 / Acao ConfigurarIIS
+2026-11-10 08:02:50 | ERRO: A credencial é inválida.
+2026-11-10 08:03:13 | INICIO Etapa 06 / Acao ConfigurarIIS
+2026-11-10 08:03:34 | ERRO: A credencial é inválida.
+2026-11-10 08:03:50 | INICIO Etapa 06 / Acao ConfigurarIIS
+2026-11-10 08:08:09 | ERRO: This configuration section cannot be used at this path. This happens when the section is locked at a parent level. Locking is either by default (overrideModeDefault="Deny"), or set explicitly by a location tag with overrideMode="Deny" or the legacy allowOverride="false".
+
+2026-11-10 08:10:38 | INICIO Etapa 06 / Acao ConfigurarIIS
+2026-11-10 08:11:23 | GUEST | IIS_CONFIGURADO=TRUE; HTTPS=intranet.smartfactory.corp; CERT_THUMBPRINT=FC912CC0E5C0957C985C7B0462CC85409216BA6A; AUTH=Windows; REDIRECT=301
+2026-11-10 08:11:59 | GUEST | DNS_A=10.20.100.10; CNAME=intranet.smartfactory.corp; SPN=HTTP/intranet.smartfactory.corp; TARGET=VM-WEB01
+2026-11-10 08:11:59 | CONFIGURAR IIS CONCLUIDO. Certificado AUTOASSINADO: testes de cliente exigem confiar no certificado.
+2026-11-10 08:12:41 | INICIO Etapa 06 / Acao Validar
+2026-11-10 08:13:11 | GUEST | Aprovado            : False
+2026-11-10 08:13:11 | GUEST | Hostname            : VM-WEB01
+2026-11-10 08:13:11 | GUEST | Dominio             : smartfactory.corp
+2026-11-10 08:13:11 | GUEST | IP                  : 10.20.100.10
+2026-11-10 08:13:11 | GUEST | HTTPSBindings       : 1
+2026-11-10 08:13:11 | GUEST | AutenticacaoWindows : True
+2026-11-10 08:13:11 | GUEST | AnonimaHabilitada   : False
+2026-11-10 08:13:11 | GUEST | Redirect301         :
+2026-11-10 08:13:11 | GUEST | CertValido          : True
+2026-11-10 08:13:11 | GUEST | AppPool             : Started
+2026-11-10 08:13:11 | GUEST | FirewallRules       : 2
+2026-11-10 08:13:11 | GUEST | PSComputerName      : VM-WEB01
+2026-11-10 08:13:12 | GUEST | RunspaceId          : c679686e-80c7-4bd3-8408-dd49d3ef5c1b
+2026-11-10 08:13:24 | GUEST | AliasCorreto   : True
+2026-11-10 08:13:24 | GUEST | SPNExiste      : True
+2026-11-10 08:13:24 | GUEST | OU             : CN=VM-WEB01,OU=Web_Servers,OU=Servidores_DMZ,OU=Infraestrutura,DC=smartfactory,DC=corp
+2026-11-10 08:13:24 | GUEST | PSComputerName : VM-DC01
+2026-11-10 08:13:24 | GUEST | RunspaceId     : 09634c5e-cf4b-4b7d-8dd1-f956d5baef0a
+2026-11-10 08:13:24 | HyperV_OK=True, IIS_OK=False, DNS_SPN_OK=True
+2026-11-10 08:13:25 | ERRO: VALIDACAO FALHOU: veja detalhes no log. Nao avance sem corrigir.
+2026-11-10 08:18:49 | INICIO Etapa 06 / Acao Validar
+2026-11-10 08:19:08 | GUEST | Aprovado            : True
+2026-11-10 08:19:08 | GUEST | Hostname            : VM-WEB01
+2026-11-10 08:19:08 | GUEST | Dominio             : smartfactory.corp
+2026-11-10 08:19:08 | GUEST | IP                  : 10.20.100.10
+2026-11-10 08:19:08 | GUEST | HTTPSBindings       : 1
+2026-11-10 08:19:08 | GUEST | AutenticacaoWindows : True
+2026-11-10 08:19:08 | GUEST | AnonimaHabilitada   : False
+2026-11-10 08:19:08 | GUEST | Redirect301         : Permanent
+2026-11-10 08:19:08 | GUEST | CertValido          : True
+2026-11-10 08:19:08 | GUEST | AppPool             : Started
+2026-11-10 08:19:08 | GUEST | FirewallRules       : 2
+2026-11-10 08:19:08 | GUEST | PSComputerName      : VM-WEB01
+2026-11-10 08:19:08 | GUEST | RunspaceId          : 3cb3dd42-ba8c-4a92-be0d-0729defe69bc
+2026-11-10 08:19:16 | GUEST | AliasCorreto   : True
+2026-11-10 08:19:16 | GUEST | SPNExiste      : True
+2026-11-10 08:19:16 | GUEST | OU             : CN=VM-WEB01,OU=Web_Servers,OU=Servidores_DMZ,OU=Infraestrutura,DC=smartfactory,DC=corp
+2026-11-10 08:19:16 | GUEST | PSComputerName : VM-DC01
+2026-11-10 08:19:16 | GUEST | RunspaceId     : 7988139b-ccf7-4130-9147-678f0dc5b063
+2026-11-10 08:19:16 | HyperV_OK=True, IIS_OK=True, DNS_SPN_OK=True
+2026-11-10 08:19:16 | VALIDACAO APROVADA (estrutura Hyper-V, IIS, DNS e SPN). Teste SSO cliente pendente.

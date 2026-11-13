@@ -1,0 +1,16 @@
+﻿SMARTFACTORY — VIDEO 14 | AUDITORIA FINAL DOS TRES CPS
+Duração-alvo: aproximadamente 3 minutos. Este é um roteiro-base: substitua os campos de resultado antes de gravar.
+
+Depois de concluirmos as doze etapas de configuração da SmartFactory, iniciamos a auditoria final para verificar se a infraestrutura realmente entrega os serviços previstos nos três CPs. Diferentemente dos vídeos anteriores, aqui não basta demonstrar que os comandos foram executados: precisamos apresentar o comportamento real de cada controle, suas evidências e também as limitações do laboratório.
+
+Primeiro, revisamos o inventário do Hyper-V e comparamos as oito máquinas, os discos e as VLANs com a arquitetura planejada. Mantivemos as adaptações necessárias ao computador de dezesseis gigabytes de RAM: a FW01 com um gigabyte e meio, o Wazuh com sete gigabytes e meio e o controlador de domínio com memória dinâmica. Os testes foram divididos por combinações pequenas de máquinas, evitando executar todo o ambiente simultaneamente.
+
+No bloco de rede, conferimos o trunk com VLAN nativa noventa e nove, as treze VLANs etiquetadas, os gateways, as regras de firewall, o NAT e o DHCP Relay. Para demonstrar os bloqueios, relacionamos as tentativas de acesso aos logs do pfSense; uma porta fechada, isoladamente, não prova que a regra funcionou. O resultado observado neste bloco foi: [INSERIR RESUMO VERIFICADO].
+
+Depois validamos o controlador de domínio, as zonas DNS, os oito escopos DHCP, as unidades organizacionais, os grupos de segurança, as GPOs e o Windows LAPS. Na estação cliente, usamos endereço obtido por DHCP, conta comum do domínio e relatórios gpresult. Nas máquinas de arquivos e intranet, conferimos SMB, DFS, quotas, Shadow Copies, IIS, certificado HTTPS, autenticação Windows e os registros de DNS e Kerberos. Os resultados documentados foram: [INSERIR EVIDENCIAS REAIS].
+
+Também examinamos a BKP01 e os backups já produzidos. A restauração de um arquivo foi comprovada pela comparação SHA-256. O backup de estado do sistema foi verificado, mas não realizamos uma restauração destrutiva sobre o único controlador de domínio.
+
+Finalmente, auditamos o Ubuntu e os componentes do Wazuh: Manager, Indexer, Filebeat, Dashboard, portas, UFW, AppArmor e agentes cadastrados. Por limitação física de memória, os testes que exigem Wazuh e endpoints Windows ao mesmo tempo foram registrados separadamente, sem alegar coleta que não comprovamos. Do mesmo modo, os testes que dependem de DC02 ou FILE02 foram identificados como não aplicáveis à versão reduzida.
+
+Encerramos com a matriz de trinta testes do CP3, verificações adicionais dos CPs 01 e 02, capturas e logs organizados. O resultado final consolidado foi: [INSERIR CONTAGENS DE VALIDADO, ADAPTADO, LIMITADO E PENDENTE].

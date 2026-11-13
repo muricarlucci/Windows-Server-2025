@@ -1,0 +1,18 @@
+﻿ 2026-11-12 21:56:29 | VM=VM-FW01; state=Running; assignedMiB=1.536; startupMiB=1.536; dynamic=False
+ 2026-11-12 21:56:29 | VM=VM-DC01; state=Running; assignedMiB=2.560; startupMiB=4.096; dynamic=True
+ 2026-11-12 21:56:30 | VM=VM-WAZUH01; state=Off; assignedMiB=0; startupMiB=7.680; dynamic=False
+ 2026-11-12 21:56:30 | VM=CLI-ADM01; state=Off; assignedMiB=0; startupMiB=4.096; dynamic=True
+ 2026-11-12 21:56:30 | Preparacao concluida; nenhum ajuste de memoria ou GPO aplicado.
+ 2026-11-12 21:57:39 | DOMAIN=smartfactory.corp;POLICY_BACKUP=C:\SF-Automacao\GPO-Backups\20261112-215720;CENTRAL_STORE=CRIADO;GPO_COUNT=10;ACCOUNT_POLICY=minimum:14,history:24,lockout:10
+ 2026-11-12 21:57:53 | Backup das GPOs copiado ao projeto via PowerShell Direct.
+ 2026-11-12 21:57:53 | GPOs estruturadas. Nenhuma GPO de hardening de servidores aplicada ao dominio.
+ 2026-11-12 22:07:18 | LAPS_SCHEMA=PRESENTE;LAPS_GROUPS=GG_LAPS_Password_Readers,GG_LAPS_Password_Resetters;PILOT_RIGHT_HOLDERS=NT AUTHORITY\SYSTEM,SMARTFACTORY\Domain Admins,SMARTFACTORY\GG_LAPS_Password_Readers,SMARTFACTORY\Enterprise Admins,BUILTIN\Administrators
+ 2026-11-12 22:14:04 | PILOTO_MOVED_AND_LINKED
+ 2026-11-12 22:14:04 | CLI-ADM01 movida para Piloto_GPO; executar ProcessarPiloto.
+ 2026-11-12 22:18:54 | LAPS_BACKUP_DIRECTORY=2;AUTOMATIC_ACCOUNT=1;EVENT_10018=True;GPO_LAPS_IN_REPORT=True;GPO_BASELINE_IN_REPORT=True
+ 2026-11-12 22:18:54 | Processamento do piloto executado; validar a evidencia no AD.
+ 2026-11-12 22:19:38 | ENCRYPTED_PRESENT=True;IN_PILOT=True;LAPS_RECORD=True;THREE_GPO_LINKS=True
+ 2026-11-12 22:19:38 | PILOTO APROVADO. Publicar e uma acao opcional e explicita.
+ 2026-11-12 22:21:17 | XML das GPOs exportado: D:\FIAP\WINDOWS\SmartFactory-GS\04-Configuracoes\GPOs\Etapa11\Relatorio-GPOs-Etapa11.xml
+ 2026-11-12 22:23:44 | GPOs PUBLICADAS: endpoints e servidores membros; DC hardening/DSRM/remoto NAO vinculados; CLI retornou a OU original.
+ 2026-11-12 22:24:30 | GPO DSRM linkada na OU nativa de DC; confirmar processamento, evento 10018 e capacidade de recuperacao.

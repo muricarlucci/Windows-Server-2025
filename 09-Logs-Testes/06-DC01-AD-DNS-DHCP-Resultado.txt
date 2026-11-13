@@ -1,0 +1,77 @@
+﻿2026-11-10 02:25:58 | ACAO INICIADA: Preparar
+2026-11-10 02:26:10 | RAM host total: 15,87 GB | livre no momento: 3,55 GB
+2026-11-10 02:26:10 | Disco D: livre: 182,2 GB
+2026-11-10 02:26:10 | PREPARACAO CONCLUIDA: documentacao, roteiro e checklist criados.
+2026-11-10 02:26:10 | RELATORIO: D:\FIAP\WINDOWS\SmartFactory-GS\00-Documentacao\04-DC01-AD-DNS-DHCP.md
+2026-11-10 02:26:10 | ROTEIRO: D:\FIAP\WINDOWS\SmartFactory-GS\07-Video\Roteiros\Roteiro_Video_Etapa_5.txt
+2026-11-10 02:26:10 | CHECKLIST: D:\FIAP\WINDOWS\SmartFactory-GS\00-Documentacao\04-DC01-Checklist-Validacao.txt
+2026-11-10 02:26:10 | ACAO ENCERRADA: Preparar
+2026-11-10 02:41:03 | ACAO INICIADA: CriarVM
+2026-11-10 02:41:14 | FALHA na acao CriarVM: Use -IsoPath "CAMINHO_COMPLETO_DA_ISO_WINDOWS_SERVER_2025.iso".
+2026-11-10 02:46:01 | ACAO INICIADA: CriarVM
+2026-11-10 02:46:12 | ISO escolhida: D:\FIAP\WINDOWS\SmartFactory-GS\01-ISOs\26100.32230.260111-0550.lt_release_svc_refresh_SERVER_EVAL_x64FRE_en-us.iso
+2026-11-10 02:46:18 | VM-DC01 CRIADA: Geracao 2, CPU 2, RAM 4GB estatica, 60GB VHDX, VLAN20.
+2026-11-10 02:46:18 | Secure Boot On; DHCPGuard Off (servidor DHCP); RouterGuard On.
+2026-11-10 02:46:18 | Inicie a VM pelo Hyper-V e instale Windows Server 2025 Standard (SEM Desktop Experience).
+2026-11-10 02:46:18 | ACAO ENCERRADA: CriarVM
+2026-11-10 04:29:02 | ACAO INICIADA: ConfigurarBase
+2026-11-10 04:30:00 | GUEST: OS             : Microsoft Windows Server 2025 Standard Evaluation
+2026-11-10 04:30:00 | GUEST: InstallType    : Server Core
+2026-11-10 04:30:00 | GUEST: Interface      : Ethernet
+2026-11-10 04:30:00 | GUEST: IPv4           : 10.20.20.11/24
+2026-11-10 04:30:00 | GUEST: Gateway        : 10.20.20.1
+2026-11-10 04:30:00 | GUEST: DNS            : 10.20.20.11
+2026-11-10 04:30:00 | GUEST: RenamePending  : True
+2026-11-10 04:30:00 | GUEST: PSComputerName : VM-DC01
+2026-11-10 04:30:00 | GUEST: RunspaceId     : 5c1102ba-bf5f-43e5-b43b-757220c93b2e
+2026-11-10 04:30:00 | BASE CONFIGURADA. Se houve renomeacao, o Windows reiniciara automaticamente.
+2026-11-10 04:30:00 | ACAO ENCERRADA: ConfigurarBase
+2026-11-10 04:31:53 | ACAO INICIADA: PromoverAD
+2026-11-10 04:38:24 | GUEST: PROMOCAO AD DS EXECUTADA. Reinicio do Windows agendado.
+2026-11-10 04:38:24 | PROMOCAO ENVIADA. Aguarde reinicio e faca login como SMARTFACTORY\Administrator.
+2026-11-10 04:38:24 | ACAO ENCERRADA: PromoverAD
+2026-11-10 04:45:07 | ACAO INICIADA: ConfigurarServicos
+2026-11-10 04:45:35 | FALHA na acao ConfigurarServicos: A credencial é inválida.
+2026-11-10 04:46:14 | ACAO INICIADA: ConfigurarServicos
+2026-11-10 04:46:57 | FALHA na acao ConfigurarServicos: Directory object not found
+2026-11-10 04:50:55 | ACAO INICIADA: ConfigurarServicos
+2026-11-10 04:51:20 | FALHA na acao ConfigurarServicos: Cannot find an object with identity: 'GG_Administracao' under: 'DC=smartfactory,DC=corp'.
+2026-11-10 04:52:24 | ACAO INICIADA: ConfigurarServicos
+2026-11-10 04:55:15 | GUEST: Dominio        : smartfactory.corp
+2026-11-10 04:55:15 | GUEST: DCHostname     : VM-DC01
+2026-11-10 04:55:15 | GUEST: Zonas          : 20.10.in-addr.arpa,smartfactory.corp
+2026-11-10 04:55:15 | GUEST: GruposNovos    : 21
+2026-11-10 04:55:15 | GUEST: TotalEscopos   : 8
+2026-11-10 04:55:15 | GUEST: ServicoDHCP    : Running
+2026-11-10 04:55:15 | GUEST: NTP            : The command completed successfully.
+2026-11-10 04:55:15 | GUEST: PSComputerName : VM-DC01
+2026-11-10 04:55:15 | GUEST: RunspaceId     : 4dfe0e3a-f7dc-4244-87da-84c15bba8049
+2026-11-10 04:55:15 | CONFIGURACAO DOS SERVICOS FINALIZADA. Execute a acao Validar.
+2026-11-10 04:55:15 | ACAO ENCERRADA: ConfigurarServicos
+2026-11-10 04:59:27 | ACAO INICIADA: Validar
+2026-11-10 04:59:56 | FALHA na acao Validar: A credencial é inválida.
+2026-11-10 05:00:02 | ACAO INICIADA: Validar
+2026-11-10 05:00:30 | GUEST: Aprovado               : True
+2026-11-10 05:00:30 | GUEST: Dominio                : smartfactory.corp
+2026-11-10 05:00:30 | GUEST: Hostname               : VM-DC01
+2026-11-10 05:00:30 | GUEST: Papel                  : 5
+2026-11-10 05:00:30 | GUEST: DominioNivel           : Windows2025Domain
+2026-11-10 05:00:30 | GUEST: FlorestaNivel          : Windows2025Forest
+2026-11-10 05:00:30 | GUEST: FSMO_PDC               : VM-DC01.smartfactory.corp
+2026-11-10 05:00:30 | GUEST: GC                     : True
+2026-11-10 05:00:30 | GUEST: IP                     : 10.20.20.11
+2026-11-10 05:00:30 | GUEST: Zonas                  : 20.10.in-addr.arpa, smartfactory.corp
+2026-11-10 05:00:30 | GUEST: DNS_SRV_Encontrado     : True
+2026-11-10 05:00:30 | GUEST: Escopos                : 8
+2026-11-10 05:00:30 | GUEST: Shares_SYSVOL_NETLOGON : 2
+2026-11-10 05:00:30 | GUEST: Servicos_AD_Ativos     : 4
+2026-11-10 05:00:30 | GUEST: Grupos_AGDLP           : 21
+2026-11-10 05:00:30 | GUEST: OUs_Base_OK            : True
+2026-11-10 05:00:30 | GUEST: DHCP_Autorizado        : True
+2026-11-10 05:00:30 | GUEST: Exclusoes_OK           : True
+2026-11-10 05:00:30 | GUEST: Servico_DHCP           : Running
+2026-11-10 05:00:30 | GUEST: PoliticaSenhaMinima    : 14
+2026-11-10 05:00:30 | GUEST: PSComputerName         : VM-DC01
+2026-11-10 05:00:30 | GUEST: RunspaceId             : 6273a265-6638-4fa3-982c-31dc3570f128
+2026-11-10 05:00:30 | VALIDACAO APROVADA: AD, DNS, DHCP, OUs e VM verificados.
+2026-11-10 05:00:30 | ACAO ENCERRADA: Validar

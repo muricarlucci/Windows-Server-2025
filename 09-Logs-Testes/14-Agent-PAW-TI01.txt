@@ -1,0 +1,15 @@
+﻿
+
+Host            : PAW-TI01
+Service         : Running
+Manager         : 10.20.110.10
+OssecXml        : Valido
+FimPaths        : C:\SF-Telemetria\FIM-Piloto
+FirewallsAtivos : 3
+LocalLogs       : Configurados; coleta remota ainda nao testada
+PSComputerName  : PAW-TI01
+RunspaceId      : 75d2959e-46c3-4d54-98e4-1db479f39409
+
+
+
+

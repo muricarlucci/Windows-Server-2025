@@ -1,0 +1,9 @@
+﻿Nesta etapa, implementamos o servidor de arquivos VM-FILE01 da SmartFactory usando Windows Server 2025 Standard em modo Server Core.
+
+Criamos a VM no Hyper-V, conectada a VLAN 20, com discos virtuais separados para sistema operacional, dados e copias de sombra. Depois, configuramos o endereco IP, ingressamos no dominio smartfactory.corp e instalamos as funcoes de File Server.
+
+As sete pastas departamentais receberam permissoes NTFS baseadas nos grupos AGDLP criados no Active Directory, com compartilhamento SMB protegido por assinatura e criptografia.
+
+Tambem configuramos o DFS Namespace no caminho smartfactory.corp\dados, as quotas e triagem de arquivos pelo FSRM, a desduplicacao de dados e o armazenamento de Shadow Copies no volume S, com agendamento nos dias uteis.
+
+Por fim, validamos os volumes e servicos. Como este laboratorio utiliza apenas FILE01, a redundancia com FILE02 e a replicacao DFSR permanecem documentadas, mas nao foram simuladas como concluidas.

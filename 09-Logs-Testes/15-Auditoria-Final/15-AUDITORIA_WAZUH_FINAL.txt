@@ -1,0 +1,98 @@
+SMARTFACTORY WAZUH AUDITORIA 2026-11-13T07:30:24-03:00
+NAME="Ubuntu"
+VERSION_ID="24.04"
+vm-wazuh01
+lo               UNKNOWN        127.0.0.1/8 
+eth0             UP             10.20.110.10/24 
+               total        used        free      shared  buff/cache   available
+Mem:           7.3Gi       2.4Gi       3.7Gi       4.0Mi       1.4Gi       4.9Gi
+Swap:          4.0Gi          0B       4.0Gi
+NAME     SIZE FSTYPE LABEL    MOUNTPOINTS
+sda       40G                 
+├─sda1     1G vfat            /boot/efi
+└─sda2  38.9G ext4            /
+sdb       80G                 
+└─sdb1    80G ext4   WAZUHIDX /var/lib/wazuh-indexer
+sdc      256M                 
+└─sdc1 254.9M vfat   SFSETUP  /mnt/sfsetup
+sr0     1024M                 
+
+STATUS DOS SERVICOS
+wazuh-manager: active
+wazuh-indexer: active
+wazuh-dashboard: active
+filebeat: active
+
+DISCO INDEXER / MOUNT
+TARGET                 SOURCE    FSTYPE OPTIONS
+/var/lib/wazuh-indexer /dev/sdb1 ext4   rw,noatime
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda2        39G   23G   14G  62% /
+/dev/sdb1        79G  3.9M   75G   1% /var/lib/wazuh-indexer
+
+HARDENING LINUX
+vm.max_map_count = 262144
+Status: active
+
+     To                         Action      From
+     --                         ------      ----
+[ 1] 22/tcp                     ALLOW IN    10.20.90.10                # SF PAW SSH
+[ 2] 443/tcp                    ALLOW IN    10.20.90.10                # SF PAW dashboard
+[ 3] 1514/tcp                   ALLOW IN    10.20.20.0/24             
+[ 4] 1515/tcp                   ALLOW IN    10.20.20.0/24             
+[ 5] 1514/tcp                   ALLOW IN    10.20.30.0/24             
+[ 6] 1515/tcp                   ALLOW IN    10.20.30.0/24             
+[ 7] 1514/tcp                   ALLOW IN    10.20.40.0/24             
+[ 8] 1515/tcp                   ALLOW IN    10.20.40.0/24             
+[ 9] 1514/tcp                   ALLOW IN    10.20.50.0/24             
+[10] 1515/tcp                   ALLOW IN    10.20.50.0/24             
+[11] 1514/tcp                   ALLOW IN    10.20.60.0/24             
+[12] 1515/tcp                   ALLOW IN    10.20.60.0/24             
+[13] 1514/tcp                   ALLOW IN    10.20.70.0/24             
+[14] 1515/tcp                   ALLOW IN    10.20.70.0/24             
+[15] 1514/tcp                   ALLOW IN    10.20.80.0/24             
+[16] 1515/tcp                   ALLOW IN    10.20.80.0/24             
+[17] 1514/tcp                   ALLOW IN    10.20.90.0/24             
+[18] 1515/tcp                   ALLOW IN    10.20.90.0/24             
+[19] 1514/tcp                   ALLOW IN    10.20.100.0/24            
+[20] 1515/tcp                   ALLOW IN    10.20.100.0/24            
+[21] 1514/tcp                   ALLOW IN    10.20.120.0/24            
+[22] 1515/tcp                   ALLOW IN    10.20.120.0/24            
+
+
+PORTAS LOCAIS DE ESCUTA
+LISTEN 0      4096              0.0.0.0:22         0.0.0.0:*          
+LISTEN 0      511               0.0.0.0:443        0.0.0.0:*          
+LISTEN 0      128               0.0.0.0:1515       0.0.0.0:*          
+LISTEN 0      128               0.0.0.0:1514       0.0.0.0:*          
+LISTEN 0      2048              0.0.0.0:55000      0.0.0.0:*          
+LISTEN 0      4096                 [::]:22            [::]:*          
+LISTEN 0      2048                 [::]:55000         [::]:*          
+LISTEN 0      4096   [::ffff:127.0.0.1]:9200             *:*          
+
+HTTPS LOCAL
+HTTP_CODE=302
+
+AGENTES CADASTRADOS
+
+Wazuh agent_control. List of available agents:
+   ID: 000, Name: vm-wazuh01 (server), IP: 127.0.0.1, Active/Local
+
+List of agentless devices:
+
+
+SSH CONFIGURACAO EFETIVA (sem segredos)
+permitrootlogin no
+pubkeyauthentication yes
+passwordauthentication yes
+
+VULNERABILITY (configuracao NAO comprova CVEs)
+  <vulnerability-detection>
+    <enabled>yes</enabled>
+    <index-status>yes</index-status>
+    <feed-update-interval>60m</feed-update-interval>
+  </vulnerability-detection>
+
+
+CONCLUSAO
+Validar Dashboard, agente online e alertas separadamente. ESTE ARQUIVO NAO PROVA INGESTAO WINDOWS.

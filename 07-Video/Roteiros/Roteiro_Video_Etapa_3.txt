@@ -1,0 +1,15 @@
+﻿ROTEIRO — VÍDEO 03 | INSTALAÇÃO DA VM-FW01 E DO PFSENSE
+
+Nesta etapa, implementamos o primeiro equipamento de segurança da SmartFactory: a máquina virtual FW01, executando o pfSense. O objetivo foi criar o firewall que, nas próximas etapas, funcionará como gateway das redes corporativas e controlará a comunicação entre os diferentes setores.
+
+Começamos executando o script de provisionamento no PowerShell do Windows hospedeiro. Ele verificou se o Hyper-V e os switches necessários estavam disponíveis, conferiu a rede de gerenciamento e localizou a mídia de instalação do pfSense. O script também preparou os diretórios da VM, do relatório e dos logs, para manter todas as evidências organizadas.
+
+Em seguida, foi criada uma máquina virtual de Geração 2, com duas CPUs virtuais, dois gigabytes de memória estática e disco VHDX de expansão dinâmica com dezesseis gigabytes. A FW01 recebeu duas placas de rede. A WAN ficou conectada ao Default Switch, que oferece saída pelo NAT do Windows. A LAN ficou conectada ao SF-LAN, responsável pelas redes internas da SmartFactory.
+
+O script configurou inicialmente a LAN como um trunk de VLANs, mantendo a VLAN 10 como nativa de forma temporária. Isso permitiu estabelecer o primeiro acesso administrativo. A correção para usar a VLAN nativa 99, conforme o desenho definitivo, foi reservada para a etapa seguinte. Também ajustamos a inicialização da VM a partir da ISO e desabilitamos o Secure Boot somente nesse firewall, respeitando as exigências da instalação utilizada.
+
+Depois veio a parte manual: iniciamos a VM pelo Hyper-V, percorremos o instalador do pfSense e instalamos o sistema no disco virtual. Na configuração inicial, identificamos as interfaces de rede, associando a WAN à primeira placa e a LAN à segunda, de acordo com o mapeamento confirmado na console.
+
+A LAN recebeu o endereço 10.20.10.1, com máscara 24, enquanto a WAN utilizou DHCP. O DHCP local da rede de gerenciamento permaneceu desabilitado, porque a distribuição de endereços corporativos será feita mais tarde pelo Windows Server.
+
+Por fim, acessamos o painel HTTPS do pfSense pelo endereço 10.20.10.1, ajustamos as configurações administrativas e executamos o script de validação da VM. A validação registrou os adaptadores, os switches, a VLAN e a conectividade de gerenciamento. Com isso, concluímos a instalação básica do firewall, ainda sem afirmar que todas as regras entre departamentos já estavam implementadas.

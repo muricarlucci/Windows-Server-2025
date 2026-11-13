@@ -1,0 +1,10 @@
+﻿[2026-11-13 03:55:16] APROVADO | CLI01 | DHCP VLAN30 pool .21-.254 IPv4=10.20.30.21
+[2026-11-13 03:55:16] APROVADO | CLI02 | DNS corporativo entregue 
+[2026-11-13 03:55:16] APROVADO | CLI03 | Canal seguro dominio 
+[2026-11-13 03:55:16] APROVADO | CLI04 | SRV do dominio resolvido 
+[2026-11-13 03:55:16] APROVADO | CLI05 | GPO Baseline e LAPS no gpresult 
+[2026-11-13 03:55:16] APROVADO | CLI06 | Evento LAPS 10018 presente ultimos 30 dias 
+[2026-11-13 03:55:16] APROVADO | CLI07 | Evento PowerShell 4104 presente ultimos 7 dias 
+[2026-11-13 03:55:16] APROVADO | CLI08 | Wazuh Agent instalado e em execucao 
+[2026-11-13 03:55:16] NAO_EXECUTADO | CLI09 | T14 acesso LAPS negado usuario comum: Logar como SMARTFACTORY\\lab.adm01, consultar sem imprimir senha, guardar Access Denied.
+[2026-11-13 03:55:16] Verificacoes gravadas: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\15-Auditoria-Final\VERIFICACOES_TECNICAS.csv

@@ -1,0 +1,11 @@
+Nesta etapa, implementamos o firewall virtual da SmartFactory utilizando pfSense Community Edition no Hyper-V.
+
+Criamos a VM-FW01, de Geração 2, com duas CPUs virtuais, 2 GB de memória RAM e um disco VHDX dinâmico de 16 GB.
+
+Configuramos duas interfaces de rede: a WAN, conectada ao Default Switch do Hyper-V, e a LAN, conectada ao switch interno SF-LAN.
+
+Após instalar o pfSense, configuramos a LAN com o endereço 10.20.10.1/24, mantendo o servidor DHCP desabilitado nessa rede de gerenciamento.
+
+Também preparamos a conexão para transportar as VLANs corporativas nas próximas etapas.
+
+Por fim, acessamos o painel administrativo do firewall e realizamos os testes iniciais de conectividade. Com isso, estabelecemos a base para implementar a segmentação e as regras de segurança da SmartFactory.

@@ -1,0 +1,42 @@
+﻿SmartFactory Etapa 02 - 2026-11-02 19:09:56
+STATUS: VM CRIADA / INSTALACAO DO PFSENSE PENDENTE
+ISO: D:\FIAP\WINDOWS\SmartFactory-GS\01-ISOs\netgate-installer-v1.2-RELEASE-amd64.iso
+SHA256 comprimido: 184514FE7DF0D339362C1E33FA051C464577A450528759B343ADE894C7C57955
+SHA256 ISO: F55DC289EEDA16C9698DB092C93B3F26A36FDACAADC4FAB67876530BD3AEAE96
+VHDX: D:\FIAP\WINDOWS\SmartFactory-GS\02-VMs\VM-FW01\VM-FW01-SO.vhdx
+
+
+Name          : VM-FW01
+State         : Off
+Generation    : 2
+Path          : D:\FIAP\WINDOWS\SmartFactory-GS\02-VMs\VM-FW01\VM-FW01
+MemoryStartup : 2147483648
+
+
+
+
+
+Name SwitchName     MacAddress  
+---- ----------     ----------  
+WAN  Default Switch 000000000000
+LAN  SF-LAN         000000000000
+
+
+
+
+VMName  VMNetworkAdapterName Mode     VlanList                                     
+------  -------------------- ----     --------                                     
+VM-FW01 WAN                  Untagged                                              
+VM-FW01 LAN                  Trunk    10,10,20,30,40,50,60,70,80,90,100,110,120,999
+
+
+
+
+
+SecureBoot         : Off
+SecureBootTemplate : MicrosoftWindows
+
+
+
+
+D: livre GB: 153.59

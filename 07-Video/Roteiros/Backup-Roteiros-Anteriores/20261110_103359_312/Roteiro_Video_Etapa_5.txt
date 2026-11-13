@@ -1,0 +1,11 @@
+﻿Nesta etapa, instalamos o primeiro Windows Server 2025 da SmartFactory, utilizando a edição Standard em modo Server Core.
+
+Criamos a VM-DC01 no Hyper-V, com duas CPUs virtuais, quatro gigabytes de memória, disco VHDX de sessenta gigabytes e conexão à VLAN 20, reservada aos servidores corporativos.
+
+Depois da instalação, automatizamos o endereçamento IP e promovemos o servidor a controlador de domínio da floresta smartfactory.corp.
+
+Também configuramos o DNS integrado ao Active Directory, suas zonas direta e reversa, os encaminhadores externos, as unidades organizacionais e os grupos de segurança no modelo AGDLP.
+
+Como o laboratório utiliza apenas um controlador de domínio, implementamos no DC01 os oito escopos DHCP previstos no projeto. A arquitetura original com redundância e DHCP Failover continua documentada, mas não será apresentada como implementada.
+
+Ao final, validamos os serviços de domínio, DNS e DHCP com comandos PowerShell e registramos as evidências. Os testes de concessão de IP por clientes e a aplicação de GPO e LAPS serão realizados nas etapas seguintes.

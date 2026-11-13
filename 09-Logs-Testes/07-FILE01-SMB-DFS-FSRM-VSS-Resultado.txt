@@ -1,0 +1,86 @@
+﻿2026-11-10 05:40:07 | INICIO: Acao Preparar
+2026-11-10 05:41:01 | D: livre = 157.7 GB; RAM host livre = 2.1 GB
+2026-11-10 05:41:01 | ISOs Windows Server encontradas: 3
+2026-11-10 05:41:01 | PREPARACAO APROVADA. Roteiro: D:\FIAP\WINDOWS\SmartFactory-GS\07-Video\Roteiros\Roteiro_Video_Etapa_6.txt; Relatorio: D:\FIAP\WINDOWS\SmartFactory-GS\00-Documentacao\05-FILE01-SMB-DFS-FSRM-VSS.md
+2026-11-10 05:41:01 | FIM: Acao Preparar
+2026-11-10 05:55:54 | INICIO: Acao CriarVM
+2026-11-10 05:55:55 | ISO selecionada: D:\FIAP\WINDOWS\SmartFactory-GS\01-ISOs\26100.32230.260111-0550.lt_release_svc_refresh_SERVER_EVAL_x64FRE_en-us-novo.iso
+2026-11-10 05:56:04 | VM CRIADA: 2vCPU, 3GB estaticos, 1 NIC VLAN20, OS=60GB E=500GB S=150GB VHDX dinamicos.
+2026-11-10 05:56:04 | INSTALE manualmente Windows Server 2025 Standard (SEM Desktop Experience) e defina senha Administrator.
+2026-11-10 05:56:04 | FIM: Acao CriarVM
+2026-11-10 06:18:10 | INICIO: Acao ConfigurarBase
+2026-11-10 06:18:37 | GUEST: IP=10.20.20.15/24; Gateway=10.20.20.1; DNS=10.20.20.11; RENOMEADO=True
+2026-11-10 06:18:37 | GUEST: REINICIO AGENDADO EM 12 SEGUNDOS; AGUARDE O LOGIN DO WINDOWS.
+2026-11-10 06:18:38 | ConfigurarBase concluido. Se houve renomeacao, aguarde o reboot antes de ingressar no dominio.
+2026-11-10 06:18:38 | FIM: Acao ConfigurarBase
+2026-11-10 06:19:38 | INICIO: Acao IngressarDominio
+2026-11-10 06:20:40 | GUEST: INGRESSO APROVADO. Reinicio agendado.
+2026-11-10 06:20:40 | Aguarde o reinicio do FILE01; prox. credencial: SMARTFACTORY\Administrator.
+2026-11-10 06:20:40 | FIM: Acao IngressarDominio
+2026-11-10 06:23:01 | INICIO: Acao ConfigurarArquivos
+2026-11-10 06:26:54 | ERRO na Acao ConfigurarArquivos: 0x8004530e, The specified required property is missing.
+
+2026-11-10 06:28:45 | INICIO: Acao ConfigurarArquivos
+2026-11-10 06:29:58 | ERRO na Acao ConfigurarArquivos: A parameter cannot be found that matches parameter name 'EventText'.
+2026-11-10 06:33:12 | INICIO: Acao ConfigurarArquivos
+2026-11-10 06:33:51 | GUEST: CONFIGURACAO FILE SERVER CONCLUIDA: E:, S:, SMB, DFSN, AGDLP, 7 quotas, tela ativa, dedup e VSS.
+2026-11-10 06:33:51 | GUEST: DFSR NAO INSTALADO: nao existe FILE02 neste laboratorio.
+2026-11-10 06:33:52 | CONFIGURACAO DO FILE SERVER FINALIZADA. Execute -Acao Validar.
+2026-11-10 06:33:52 | FIM: Acao ConfigurarArquivos
+2026-11-10 06:34:14 | INICIO: Acao Validar
+2026-11-10 06:34:38 | GUEST: OK: Hostname VM-FILE01
+2026-11-10 06:34:38 | GUEST: OK: Windows Server 2025 (build >= 26100)
+2026-11-10 06:34:38 | GUEST: OK: Instalacao Server Core
+2026-11-10 06:34:38 | GUEST: OK: Ingresso AD
+2026-11-10 06:34:38 | GUEST: OK: IP 10.20.20.15
+2026-11-10 06:34:38 | GUEST: OK: Volume E: NTFS, cluster 64KB
+2026-11-10 06:34:38 | GUEST: OK: Volume S: NTFS
+2026-11-10 06:34:38 | GUEST: OK: Role FS-FileServer
+2026-11-10 06:34:38 | GUEST: OK: Role FS-DFS-Namespace
+2026-11-10 06:34:38 | GUEST: OK: Role FS-Resource-Manager
+2026-11-10 06:34:38 | GUEST: OK: Role FS-Data-Deduplication
+2026-11-10 06:34:38 | GUEST: OK: Role RSAT-AD-PowerShell
+2026-11-10 06:34:38 | GUEST: OK: Dados$ SMB criptografado
+2026-11-10 06:34:38 | GUEST: OK: SMB assinado, criptografado e SMB1 desativado
+2026-11-10 06:34:38 | GUEST: OK: Share Dados$: Authenticated Users Change
+2026-11-10 06:34:38 | GUEST: OK: NTFS AGDLP Administracao
+2026-11-10 06:34:38 | GUEST: OK: NTFS AGDLP Recursos_Humanos
+2026-11-10 06:34:38 | GUEST: OK: NTFS AGDLP Financeiro
+2026-11-10 06:34:38 | GUEST: OK: NTFS AGDLP Engenharia
+2026-11-10 06:34:38 | GUEST: OK: NTFS AGDLP Producao
+2026-11-10 06:34:38 | GUEST: OK: NTFS AGDLP Logistica
+2026-11-10 06:34:38 | GUEST: OK: NTFS AGDLP TI
+2026-11-10 06:34:38 | GUEST: OK: DFS Namespace
+2026-11-10 06:34:38 | GUEST: OK: DFS Administracao
+2026-11-10 06:34:38 | GUEST: OK: Quota Administracao
+2026-11-10 06:34:38 | GUEST: OK: DFS Recursos_Humanos
+2026-11-10 06:34:38 | GUEST: OK: Quota Recursos_Humanos
+2026-11-10 06:34:38 | GUEST: OK: DFS Financeiro
+2026-11-10 06:34:38 | GUEST: OK: Quota Financeiro
+2026-11-10 06:34:38 | GUEST: OK: DFS Engenharia
+2026-11-10 06:34:38 | GUEST: OK: Quota Engenharia
+2026-11-10 06:34:38 | GUEST: OK: DFS Producao
+2026-11-10 06:34:38 | GUEST: OK: Quota Producao
+2026-11-10 06:34:38 | GUEST: OK: DFS Logistica
+2026-11-10 06:34:38 | GUEST: OK: Quota Logistica
+2026-11-10 06:34:38 | GUEST: OK: DFS TI
+2026-11-10 06:34:38 | GUEST: OK: Quota TI
+2026-11-10 06:34:38 | GUEST: OK: FSRM File Screen ativo
+2026-11-10 06:34:38 | GUEST: OK: Data Deduplication habilitada
+2026-11-10 06:34:38 | GUEST: OK: Agendamento VSS
+2026-11-10 06:34:38 | GUEST: OK: Shadow Copy diff area em S:
+2026-11-10 06:34:38 | GUEST: OK: DNS A FILE01
+2026-11-10 06:34:38 | GUEST: RESULTADO: 0 falha(s)
+2026-11-10 06:34:38 | GUEST: VALIDACAO AUTOMATIZADA APROVADA. Testes reais de usuarios/SMB e recuperacao VSS ainda requerem evidencias.
+2026-11-10 06:34:38 | VALIDACAO HOST + GUEST APROVADA. Guarde capturas e grave video 06.
+2026-11-10 06:34:38 | FIM: Acao Validar
+2026-11-10 06:34:49 | INICIO: Acao TestarVSS
+2026-11-10 06:35:05 | GUEST: VSS: COPIA DE SOMBRA CRIADA EM E:. Diff area configurada em S:.
+2026-11-10 06:35:05 | GUEST: vssadmin 1.1 - Volume Shadow Copy Service administrative command-line tool
+2026-11-10 06:35:05 | GUEST: (C) Copyright 2001-2013 Microsoft Corp.
+2026-11-10 06:35:05 | GUEST: Successfully created shadow copy for 'E:\'
+2026-11-10 06:35:05 | GUEST: Shadow Copy ID: {74f5da9d-4fdb-429b-b4f6-131755dea2f9}
+2026-11-10 06:35:05 | GUEST: Shadow Copy Volume Name: \\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy1
+2026-11-10 06:35:05 | GUEST: Atencao: snapshot local nao substitui backup externo.
+2026-11-10 06:35:05 | TESTE VSS CONCLUIDO; verificar espaco fisico D: apos snapshot.
+2026-11-10 06:35:05 | FIM: Acao TestarVSS

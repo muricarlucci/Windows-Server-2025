@@ -1,0 +1,66 @@
+=== SmartFactory | Etapa12 | Auditoria Wazuh/Linux ===
+2026-11-13T00:29:22-03:00
+vm-wazuh01
+Ubuntu 24.04.5 LTS
+lo               UNKNOWN        127.0.0.1/8 
+eth0             UP             10.20.110.10/24 
+               total        used        free      shared  buff/cache   available
+Mem:           7.3Gi       2.4Gi       3.9Gi       4.0Mi       1.3Gi       4.9Gi
+Swap:          4.0Gi          0B       4.0Gi
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda2        39G   23G   15G  62% /
+/dev/sdb1        79G  3.4M   75G   1% /var/lib/wazuh-indexer
+-- Pacotes Wazuh --
+filebeat 7.10.2-2
+wazuh-dashboard 4.14.10-1
+wazuh-indexer 4.14.10-1
+wazuh-manager 4.14.10-1
+-- Servicos --
+wazuh-manager: active
+wazuh-indexer: active
+wazuh-dashboard: active
+filebeat: active
+-- Modulos Wazuh (nao contem senhas) --
+
+  <vulnerability-detection>
+    <enabled>yes</enabled>
+    <index-status>yes</index-status>
+    <feed-update-interval>60m</feed-update-interval>
+-- Firewall --
+Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), disabled (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW IN    10.20.90.10                # SF PAW SSH
+443/tcp                    ALLOW IN    10.20.90.10                # SF PAW dashboard
+1514/tcp                   ALLOW IN    10.20.20.0/24             
+1515/tcp                   ALLOW IN    10.20.20.0/24             
+1514/tcp                   ALLOW IN    10.20.30.0/24             
+1515/tcp                   ALLOW IN    10.20.30.0/24             
+1514/tcp                   ALLOW IN    10.20.40.0/24             
+1515/tcp                   ALLOW IN    10.20.40.0/24             
+1514/tcp                   ALLOW IN    10.20.50.0/24             
+1515/tcp                   ALLOW IN    10.20.50.0/24             
+1514/tcp                   ALLOW IN    10.20.60.0/24             
+1515/tcp                   ALLOW IN    10.20.60.0/24             
+1514/tcp                   ALLOW IN    10.20.70.0/24             
+1515/tcp                   ALLOW IN    10.20.70.0/24             
+1514/tcp                   ALLOW IN    10.20.80.0/24             
+1515/tcp                   ALLOW IN    10.20.80.0/24             
+1514/tcp                   ALLOW IN    10.20.90.0/24             
+1515/tcp                   ALLOW IN    10.20.90.0/24             
+1514/tcp                   ALLOW IN    10.20.100.0/24            
+1515/tcp                   ALLOW IN    10.20.100.0/24            
+1514/tcp                   ALLOW IN    10.20.120.0/24            
+1515/tcp                   ALLOW IN    10.20.120.0/24            
+
+-- AppArmor --
+AppArmor ativo
+-- Ajuste do indexador --
+vm.max_map_count = 262144
+SSH root remoto: proibido via config SmartFactory
+HTTPS local: HTTP 302
+AUDITORIA ETAPA12 CONCLUIDA: servicos ativos, SSH root restrito.

@@ -1,0 +1,12 @@
+﻿[2026-11-13 04:10:59] APROVADO | FS01 | Dados$ em E:\Dados 
+[2026-11-13 04:10:59] APROVADO | FS02 | Dados$ SMB criptografado 
+[2026-11-13 04:10:59] APROVADO | FS03 | SMB assinatura obrigatoria, SMB1 off 
+[2026-11-13 04:10:59] APROVADO | FS04 | DFS Namespace dominio unico Links=7
+[2026-11-13 04:10:59] APROVADO | FS05 | FSRM >=7 quotas Quotas=7
+[2026-11-13 04:10:59] APROVADO | FS06 | FSRM FileScreen ativo 
+[2026-11-13 04:10:59] APROVADO | FS07 | Desduplicacao ativa em E: 
+[2026-11-13 04:10:59] APROVADO | FS08 | VSS diff area em S: 
+[2026-11-13 04:10:59] APROVADO | FS09 | Volumes E e S em NTFS 
+[2026-11-13 04:10:59] NAO_EXECUTADO | FS10 | Acesso funcional de usuario RH/ADM a suas pastas: Requer autenticacao como usuario comum e DC junto de FILE e cliente.
+[2026-11-13 04:10:59] NAO_EXECUTADO | FS11 | Failover DFSR: Nao implementado: apenas FILE01.
+[2026-11-13 04:10:59] Verificacoes gravadas: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\15-Auditoria-Final\VERIFICACOES_TECNICAS.csv

@@ -1,0 +1,64 @@
+﻿2026-11-10 13:39:47 | HOST | Disco D: livre 67.79 GB
+2026-11-10 13:39:47 | HOST | FW01 memoria atribuida 2 GB
+2026-11-10 13:39:47 | HOST | DC01 memoria atribuida 2.5 GB; demanda 1.4 GB
+2026-11-10 13:39:47 | HOST | DC01 memoria dinamica: True; min 2.5; startup 4; max 4 GB
+2026-11-10 13:39:47 | PREPARACAO CONCLUIDA. Proximo: CriarVM.
+2026-11-10 13:39:47 | ROTEIRO: D:\FIAP\WINDOWS\SmartFactory-GS\07-Video\Roteiros\Roteiro_Video_Etapa_10.txt
+2026-11-10 13:39:47 | RELATORIO: D:\FIAP\WINDOWS\SmartFactory-GS\00-Documentacao\09-PAW-TI01-Administracao-Segura.md
+2026-11-10 13:41:06 | VM CRIADA | Gen2, vTPM, Secure Boot, 2 vCPU, RAM 4/4/6 GB dinamica, VHDX 80GB, Access VLAN90.
+2026-11-10 13:41:06 | ISO: D:\FIAP\WINDOWS\SmartFactory-GS\01-ISOs\Windows11_Client_x64_pt-br_26300_9457.iso
+2026-11-10 13:41:06 | Agora iniciar PAW-TI01 e instalar WINDOWS 11 PRO, conta local administradora.
+2026-11-10 14:36:40 | CONVIDADO | IP: 10.20.90.10/24 | gateway: 10.20.90.1 | DNS: 10.20.20.11
+2026-11-10 14:36:40 | CONVIDADO | DNS SRV do Active Directory: OK
+2026-11-10 14:36:40 | CONVIDADO | Hostname PAW-TI01: OK
+2026-11-10 14:36:40 | CONFIGURACAO BASE CONCLUIDA. Aguarde reinicio se hostname mudou.
+2026-11-10 14:38:11 | ERRO | Acao=CriarContaAdmin | Cannot find an object with identity: 'GG_PAW_Administradores' under: 'DC=smartfactory,DC=corp'.
+2026-11-10 14:42:23 | CONVIDADO | Grupo criado: GG_PAW_Administradores
+2026-11-10 14:42:23 | CONVIDADO | Conta criada: adm.lab
+2026-11-10 14:42:23 | CONVIDADO | Conta          : adm.lab
+2026-11-10 14:42:23 | CONVIDADO | Grupo          : GG_PAW_Administradores
+2026-11-10 14:42:23 | CONVIDADO | LogonPermitido : PAW-TI01
+2026-11-10 14:42:23 | CONVIDADO | DomainAdmin    : False
+2026-11-10 14:42:23 | CONVIDADO | OU             : CN=Administrador Laboratorio PAW,OU=Usuarios,OU=TI,OU=SmartFactory,DC=smartfactory,DC=corp
+2026-11-10 14:42:23 | CONVIDADO | PSComputerName : VM-DC01
+2026-11-10 14:42:23 | CONVIDADO | RunspaceId     : 1c7abc47-750f-40b6-8cd5-18dcec10c30a
+2026-11-10 14:42:23 | CONTA PREPARADA | adm.lab e grupo PAW; sem Domain Admins.
+2026-11-10 14:44:29 | ERRO | Acao=IngressarDominio | A credencial é inválida.
+2026-11-10 14:45:38 | CONVIDADO | PAW ingressou no dominio; reinicio programado em 15 segundos.
+2026-11-10 14:45:38 | DOMINIO CONCLUIDO. Aguarde reinicio e login de dominio.
+2026-11-10 14:50:32 | ERRO | Acao=ConfigurarPAW | A credencial é inválida.
+2026-11-10 14:51:13 | ERRO | Acao=ConfigurarPAW | Não é possível excluir uma árvore de subchave porque a subchave não existe.
+2026-11-10 14:52:28 | CONVIDADO | Dominio         : smartfactory.corp
+2026-11-10 14:52:28 | CONVIDADO | GrupoLocal      : Administradores
+2026-11-10 14:52:28 | CONVIDADO | GrupoAdicionado : SMARTFACTORY\GG_PAW_Administradores
+2026-11-10 14:52:28 | CONVIDADO | Firewall        : Ativo
+2026-11-10 14:52:28 | CONVIDADO | RDPInbound      : Desabilitado
+2026-11-10 14:52:28 | CONVIDADO | Ferramenta      : C:\SF-Administracao\Testar-Portas-Administrativas.ps1
+2026-11-10 14:52:28 | CONVIDADO | PSComputerName  : PAW-TI01
+2026-11-10 14:52:28 | CONVIDADO | RunspaceId      : ce069c10-6cea-4ceb-8a0c-3782d821a3af
+2026-11-10 14:52:28 | PAW PROTEGIDA | Administradores locais via grupo AD, firewall e RDP inbound desabilitado.
+2026-11-10 14:52:28 | IMPORTANTE | adm.lab NAO recebeu administracao dos servidores remotos; delegacao vem depois.
+2026-11-10 14:53:19 | ERRO | Acao=Validar | O termo 'Get-VMTPM' não é reconhecido como nome de cmdlet, função, arquivo de script ou programa operável. Verifique a grafia do nome ou, se um caminho tiver sido incluído, veja se o caminho está correto e tente novamente.
+2026-11-10 14:54:15 | ERRO | Acao=Validar | A propriedade 'Enabled' não foi encontrada neste objeto. Verifique se a propriedade existe.
+2026-11-10 14:55:29 | CONVIDADO | SO             : Microsoft Windows 11 Pro
+2026-11-10 14:55:29 | CONVIDADO | Hostname       : PAW-TI01
+2026-11-10 14:55:29 | CONVIDADO | Dominio        : smartfactory.corp
+2026-11-10 14:55:29 | CONVIDADO | IP             : 10.20.90.10
+2026-11-10 14:55:29 | CONVIDADO | Gateway        : 10.20.90.1
+2026-11-10 14:55:29 | CONVIDADO | DNS            : 10.20.20.11
+2026-11-10 14:55:29 | CONVIDADO | CanalSeguro    : OK
+2026-11-10 14:55:29 | CONVIDADO | Firewall       : Ativo
+2026-11-10 14:55:29 | CONVIDADO | RDPInbound     : Bloqueado
+2026-11-10 14:55:29 | CONVIDADO | GrupoPAW       : OK
+2026-11-10 14:55:29 | CONVIDADO | PSComputerName : PAW-TI01
+2026-11-10 14:55:29 | CONVIDADO | RunspaceId     : 79c271c7-81bb-44d1-99f6-e55f126d0c1f
+2026-11-10 14:55:29 | CONVIDADO | Computador        : CN=PAW-TI01,OU=Computadores,OU=TI,OU=SmartFactory,DC=smartfactory,DC=corp
+2026-11-10 14:55:29 | CONVIDADO | Conta             : adm.lab
+2026-11-10 14:55:29 | CONVIDADO | OU                : CN=Administrador Laboratorio PAW,OU=Usuarios,OU=TI,OU=SmartFactory,DC=smartfactory,DC=corp
+2026-11-10 14:55:29 | CONVIDADO | LogonWorkstations : PAW-TI01
+2026-11-10 14:55:29 | CONVIDADO | Grupo             : GG_PAW_Administradores
+2026-11-10 14:55:29 | CONVIDADO | DomainAdmin       : Nao
+2026-11-10 14:55:29 | CONVIDADO | PSComputerName    : VM-DC01
+2026-11-10 14:55:29 | CONVIDADO | RunspaceId        : 07b93022-4dc3-4bdd-a106-f8d3c6b57fc0
+2026-11-10 14:55:29 | VALIDACAO APROVADA: PAW, VLAN90, AD, conta dedicada, RDP inbound, firewall e seguranca Hyper-V.
+2026-11-10 14:55:29 | PENDENTES FASE FINAL: RDP real WEB/BKP, WinRM, SSH Wazuh, isolamento vs CLI-ADM01.

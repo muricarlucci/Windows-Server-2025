@@ -1,0 +1,3 @@
+﻿[2026-11-13 07:56:49] APROVADO | WZ01 | Relatorio Linux de auditoria coletado 
+[2026-11-13 07:56:49] Saida Wazuh e local; verificacao humana e painel ainda necessarios. Sem segredo no log.
+[2026-11-13 07:56:49] Verificacoes gravadas: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\15-Auditoria-Final\VERIFICACOES_TECNICAS.csv

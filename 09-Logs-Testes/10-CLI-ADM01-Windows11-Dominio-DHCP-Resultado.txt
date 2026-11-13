@@ -1,0 +1,48 @@
+﻿2026-11-10 11:40:49 | HOST | Disco D: livre: 90.83 GB
+2026-11-10 11:40:49 | HOST | FW01 memoria atribuida: 2 GB
+2026-11-10 11:40:49 | HOST | DC01 memoria atribuida: 4 GB
+2026-11-10 11:40:49 | HOST | DC01 memoria dinamica habilitada: True
+2026-11-10 11:40:49 | HOST | SF-LAN: Internal
+2026-11-10 11:40:49 | PREPARACAO CONCLUIDA. Proximo: CriarVM.
+2026-11-10 11:40:49 | RELATORIO: D:\FIAP\WINDOWS\SmartFactory-GS\00-Documentacao\08-CLI-ADM01-Windows11-Dominio-DHCP.md
+2026-11-10 11:40:49 | ROTEIRO: D:\FIAP\WINDOWS\SmartFactory-GS\07-Video\Roteiros\Roteiro_Video_Etapa_9.txt
+2026-11-10 11:43:27 | CRIADA | CLI-ADM01 Gen2; 2 vCPU; RAM 4/4/6 GB dinamica; 80 GB VHDX; VLAN30; SecureBoot e vTPM.
+2026-11-10 11:43:27 | ISO | D:\FIAP\WINDOWS\SmartFactory-GS\01-ISOs\Windows11_Client_x64_pt-br_26300_9457.iso
+2026-11-10 11:43:27 | Agora inicie CLI-ADM01 e instale Windows 11 PRO; crie uma conta LOCAL administrativa.
+2026-11-10 12:49:20 | ERRO | Acao=ConfigurarBase | A credencial é inválida.
+2026-11-10 12:51:35 | CONVIDADO | DHCP VALIDADO | IP 10.20.30.21/24; GW 10.20.30.1; DNS 10.20.20.11
+2026-11-10 12:51:35 | CONVIDADO | DNS VALIDADO | SRV do dominio smartfactory.corp localizado
+2026-11-10 12:51:35 | CONVIDADO | Nome CLI-ADM01 ja estava configurado.
+2026-11-10 12:51:35 | BASE CONCLUIDA. Se houve renomeacao, aguarde reiniciar antes de seguir.
+2026-11-10 12:54:35 | ERRO | Acao=CriarUsuarioTeste | A credencial é inválida.
+2026-11-10 12:55:16 | ERRO | Acao=CriarUsuarioTeste | A credencial é inválida.
+2026-11-10 12:56:52 | ERRO | Acao=CriarUsuarioTeste | Cannot find an object with identity: 'lab.adm01' under: 'DC=smartfactory,DC=corp'.
+2026-11-10 12:59:12 | CONVIDADO | CRIADO | Usuario lab.adm01, comum, habilitado na OU de Administracao.
+2026-11-10 12:59:12 | CONVIDADO | GRUPO VALIDADO | lab.adm01 -> GG_Administracao; nao e Domain Admin.
+2026-11-10 12:59:12 | CONTA DE TESTE PREPARADA. Guarde a senha; nao exibida nem registrada.
+2026-11-10 13:00:31 | ERRO | Acao=IngressarDominio | A credencial é inválida.
+2026-11-10 13:01:44 | CONVIDADO | DOMINIO | CLI-ADM01 ingressou em smartfactory.corp; reinicio automatico em 15 segundos.
+2026-11-10 13:01:44 | AGUARDE | Reboot e login de dominio antes da validacao final.
+2026-11-10 13:10:44 | ERRO | Acao=Validar | O termo 'Get-VMTPM' não é reconhecido como nome de cmdlet, função, arquivo de script ou programa operável. Verifique a grafia do nome ou, se um caminho tiver sido incluído, veja se o caminho está correto e tente novamente.
+2026-11-10 13:11:56 | ERRO | Acao=Validar | A propriedade 'Enabled' não foi encontrada neste objeto. Verifique se a propriedade existe.
+2026-11-10 13:13:15 | ERRO | Acao=Validar | A credencial é inválida.
+2026-11-10 13:13:39 | ERRO | Acao=Validar | A credencial é inválida.
+2026-11-10 13:16:06 | CONVIDADO | SO             : Microsoft Windows 11 Pro
+2026-11-10 13:16:06 | CONVIDADO | Nome           : CLI-ADM01
+2026-11-10 13:16:06 | CONVIDADO | Dominio        : smartfactory.corp
+2026-11-10 13:16:06 | CONVIDADO | IP             : 10.20.30.21
+2026-11-10 13:16:06 | CONVIDADO | DNS            : 10.20.20.11
+2026-11-10 13:16:06 | CONVIDADO | Gateway        : 10.20.30.1
+2026-11-10 13:16:06 | CONVIDADO | CanalSeguro    : OK
+2026-11-10 13:16:06 | CONVIDADO | SRV            : OK
+2026-11-10 13:16:06 | CONVIDADO | PSComputerName : CLI-ADM01
+2026-11-10 13:16:06 | CONVIDADO | RunspaceId     : 0905d18b-3396-4c0d-aa52-8b81ffb1424e
+2026-11-10 13:16:06 | CONVIDADO | Computador     : CN=CLI-ADM01,OU=Computadores,OU=Administracao,OU=SmartFactory,DC=smartfactory,DC=corp
+2026-11-10 13:16:06 | CONVIDADO | Usuario        : lab.adm01
+2026-11-10 13:16:06 | CONVIDADO | Grupo          : GG_Administracao
+2026-11-10 13:16:06 | CONVIDADO | IPConcedido    : 10.20.30.21
+2026-11-10 13:16:06 | CONVIDADO | DHCPLease      : Encontrado
+2026-11-10 13:16:06 | CONVIDADO | DHCPServer     : VM-DC01
+2026-11-10 13:16:06 | CONVIDADO | PSComputerName : VM-DC01
+2026-11-10 13:16:06 | CONVIDADO | RunspaceId     : 50b6e4e9-2346-4925-a6e1-1b6b39b895c4
+2026-11-10 13:16:06 | VALIDACAO APROVADA: Windows 11, VLAN30, DHCP Relay, DNS, AD, TPM e canal seguro.

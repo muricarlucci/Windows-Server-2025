@@ -1,0 +1,3 @@
+﻿[2026-11-13 07:23:56] APROVADO | WZ00 | Bash de auditoria colocado na SFSETUP 
+[2026-11-13 07:23:56] Agora inicie SOMENTE FW01 + WAZUH01, execute Bash via console e desligue normalmente para coletar.
+[2026-11-13 07:23:56] Verificacoes gravadas: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\15-Auditoria-Final\VERIFICACOES_TECNICAS.csv

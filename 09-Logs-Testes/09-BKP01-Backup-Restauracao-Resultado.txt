@@ -1,0 +1,55 @@
+﻿2026-11-10 08:52:23 | ETAPA 07 - ACAO: Preparar
+2026-11-10 08:52:23 | RAM disponivel no host: 2.93GB; D livre: 121.1GB
+2026-11-10 08:52:23 | DC01: dinamica=True, minimo=2560MB, inicial=4096MB, maximo=4096MB
+2026-11-10 08:52:23 | PREPARACAO CONCLUIDA. Roteiro: D:\FIAP\WINDOWS\SmartFactory-GS\07-Video\Roteiros\Roteiro_Video_Etapa_8.txt
+2026-11-10 08:56:54 | ETAPA 07 - ACAO: CriarVM
+2026-11-10 08:57:09 | VM-BKP01 CRIADA: Gen2 2vCPU, RAM dinamica 2/3/4GB, VLAN120, OS60GB + REPO200GB.
+2026-11-10 08:57:09 | Instale Windows Server 2025 STANDARD DESKTOP EXPERIENCE e crie a senha local.
+2026-11-10 09:28:13 | ETAPA 07 - ACAO: ConfigurarBase
+2026-11-10 09:29:33 | ERRO: LDAP DC01 nao acessivel a partir da VLAN120. Verifique a regra BKP->DC no pfSense.
+2026-11-10 09:34:22 | ETAPA 07 - ACAO: ConfigurarBase
+2026-11-10 09:34:47 | GUEST | Hostname alterado; reinicio em 15 segundos.
+2026-11-10 09:34:47 | GUEST | IP=10.20.120.10/24; Gateway=10.20.120.1; DNS=10.20.20.11
+2026-11-10 09:34:47 | ConfigurarBase concluida. Aguarde eventual reinicializacao.
+2026-11-10 09:37:50 | ETAPA 07 - ACAO: IngressarDominio
+2026-11-10 09:38:34 | ERRO: Computer 'VM-BKP01' failed to join domain 'smartfactory.corp' from its current workgroup 'WORKGROUP' with following error message: The specified domain either does not exist or could not be contacted.
+2026-11-10 09:52:33 | ETAPA 07 - ACAO: IngressarDominio
+2026-11-10 09:52:57 | GUEST | Ingresso no dominio concluido. Reinicio em 15 segundos.
+2026-11-10 09:56:24 | ETAPA 07 - ACAO: ConfigurarRepositorio
+2026-11-10 09:56:32 | ERRO: A credencial é inválida.
+2026-11-10 09:56:38 | ETAPA 07 - ACAO: ConfigurarRepositorio
+2026-11-10 09:56:58 | ERRO: A credencial é inválida.
+2026-11-10 09:57:06 | ETAPA 07 - ACAO: ConfigurarRepositorio
+2026-11-10 09:58:08 | GUEST | Repositorio pronto: B:\Repositorio, NTFS, SMB criptografado, acesso de administracao e VLAN120.
+2026-11-10 09:58:43 | ETAPA 07 - ACAO: ConfigurarRepositorio
+2026-11-10 09:59:04 | GUEST | Repositorio pronto: B:\Repositorio, NTFS, SMB criptografado, acesso de administracao e VLAN120.
+2026-11-10 10:03:46 | ETAPA 07 - ACAO: PrepararTesteFILE01
+2026-11-10 10:04:00 | ERRO: A credencial é inválida.
+2026-11-10 10:04:07 | ETAPA 07 - ACAO: PrepararTesteFILE01
+2026-11-10 10:04:33 | GUEST | Arquivo de teste: E:\Dados\TI\SF-TESTE-RESTAURACAO.txt; SHA256=CB0459946285450FA63D1C584A9E99A3552A659D260A01A8035AD9BC0F987536
+2026-11-10 10:04:33 | Arquivo de teste criado/identificado. Desligue FILE01 normalmente antes do backup offline.
+2026-11-10 10:06:40 | ETAPA 07 - ACAO: BackupFILE01Offline
+2026-11-10 10:06:42 | BACKUP FILE01 OFFLINE: 1 arquivos, 81 bytes, snapshot=20261110_100642, Robocopy=1
+2026-11-10 10:12:53 | ETAPA 07 - ACAO: TestarRestauracao
+2026-11-10 10:16:43 | T28 RESTAURACAO APROVADA: arquivo=SF-TESTE-RESTAURACAO.txt, SHA256=CB0459946285450FA63D1C584A9E99A3552A659D260A01A8035AD9BC0F987536
+2026-11-10 10:18:55 | ETAPA 07 - ACAO: BackupEstadoDC
+2026-11-10 10:18:58 | Disco de System State anexado ao DC01.
+2026-11-10 10:19:12 | ERRO: A credencial é inválida.
+2026-11-10 10:19:17 | ETAPA 07 - ACAO: BackupEstadoDC
+2026-11-10 10:54:06 | GUEST | WBADMIN System State DC01: sucesso; 2026-11-10T10:54:05
+2026-11-10 10:54:06 | GUEST | wbadmin 1.0 - Backup command-line tool
+2026-11-10 10:54:06 | GUEST | (C) Copyright Microsoft Corporation. All rights reserved.
+2026-11-10 10:54:06 | GUEST | Backup time: 11/10/2026 10:21 AM
+2026-11-10 10:54:06 | GUEST | Backup target: Fixed Disk labeled R:
+2026-11-10 10:54:06 | GUEST | Version identifier: 11/10/2026-13:21
+2026-11-10 10:54:06 | GUEST | Can recover: Volume(s), File(s), Application(s), System State
+2026-11-10 10:54:06 | GUEST | Snapshot ID: {b5c3966d-a0bb-48e5-8d22-8c9ee1894c9b}
+2026-11-10 11:03:10 | ETAPA 07 - ACAO: ArquivarEstadoDC
+2026-11-10 11:04:49 | System State DC01 arquivado: 20261110_110311, arquivos=22, Robocopy=1
+2026-11-10 11:13:09 | ETAPA 07 - ACAO: Validar
+2026-11-10 11:13:09 | Hyper-V BKP01: estado=Running; Gen=2; NIC-VLAN=120; VHDX=2; RAM-Dinamica=True
+2026-11-10 11:14:13 | GUEST | AD=smartfactory.corp; IP=10.20.120.10; B:=SF_BKP_REPO; share=SF_Repositorio$; EncryptData=True
+2026-11-10 11:14:13 | GUEST | Snapshots FILE01=1
+2026-11-10 11:14:13 | GUEST | Arquivos SystemState DC01=1
+2026-11-10 11:14:13 | GUEST | Restauracoes TESTE=1
+2026-11-10 11:14:13 | VALIDACAO ESTRUTURAL CONCLUIDA. Verifique snapshots, restore e System State nos logs.

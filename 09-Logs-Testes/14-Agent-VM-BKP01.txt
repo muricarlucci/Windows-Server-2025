@@ -1,0 +1,15 @@
+﻿
+
+Host            : VM-BKP01
+Service         : Running
+Manager         : 10.20.110.10
+OssecXml        : Valido
+FimPaths        : B:\Repositorio\Politicas
+FirewallsAtivos : 3
+LocalLogs       : Configurados; coleta remota ainda nao testada
+PSComputerName  : VM-BKP01
+RunspaceId      : 05f81cf4-7b51-4981-9989-3bb9d1c2c79a
+
+
+
+

@@ -1,0 +1,17 @@
+﻿ROTEIRO — VÍDEO 06 | FILE01, SMB, DFS, FSRM E VSS
+
+Nesta etapa, implementamos o servidor de arquivos VM-FILE01, que concentra os documentos dos departamentos da SmartFactory. O objetivo foi combinar armazenamento organizado, permissões por grupo, compartilhamento seguro e recursos de governança e recuperação de arquivos.
+
+Primeiro, deixamos ligadas apenas as máquinas necessárias para economizar memória e executamos o PowerShell de preparação. Ele conferiu o domínio e os recursos disponíveis, criou os diretórios de evidências e preparou o relatório e o roteiro. Depois, provisionamos a FILE01 como Windows Server 2025 Standard Core, com duas CPUs virtuais, três gigabytes de RAM e conexão à VLAN 20.
+
+A VM recebeu três discos VHDX dinâmicos separados: sessenta gigabytes para o Windows, quinhentos gigabytes para dados e cento e cinquenta gigabytes para cópias de sombra. A divisão permite diferenciar sistema operacional, arquivos corporativos e armazenamento do VSS. Instalamos o Windows no disco de sessenta gigabytes e deixamos os outros dois para inicialização automatizada, em GPT e NTFS.
+
+Com o Windows instalado, o script configurou o nome VM-FILE01, o IP 10.20.20.15, o gateway e o DNS do DC01. Em seguida, ingressou o servidor no domínio smartfactory.corp e posicionou seu objeto na OU de servidores de arquivos. As reinicializações foram feitas entre as operações que exigiam aplicar mudanças no Windows.
+
+A configuração principal preparou o volume E:, criou a pasta Dados e as sete subpastas de Administração, Recursos Humanos, Financeiro, Engenharia, Produção, Logística e TI. Cada setor recebeu permissões NTFS específicas, ligadas aos grupos de domínio local que já havíamos criado no Active Directory. Esse é o modelo AGDLP: usuários entram nos grupos globais, que são associados aos grupos de permissão dos recursos.
+
+Depois, configuramos o compartilhamento oculto Dados$, exigência de assinatura SMB, desativação do SMB1, criptografia da comunicação e enumeração baseada em acesso. Também criamos o DFS Namespace no endereço lógico \\smartfactory.corp\dados, para os usuários acessarem as pastas sem depender diretamente do nome físico do servidor.
+
+Na parte de governança, o script instalou o FSRM, aplicou as quotas específicas de cada departamento e criou a triagem ativa de extensões executáveis, mídias pessoais e arquivos suspeitos. Habilitamos ainda a desduplicação no volume de dados e configuramos o VSS para manter os diferenciais no disco S:, com agendamento às sete e às doze horas dos dias úteis.
+
+Finalizamos verificando os volumes, compartilhamentos, permissões e serviços. Como o laboratório não possui FILE02, o namespace foi implementado com um único destino; a replicação e a tolerância a falhas entre dois servidores continuam apenas no projeto completo.

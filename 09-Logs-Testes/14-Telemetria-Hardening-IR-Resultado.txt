@@ -1,0 +1,41 @@
+﻿2026-11-12 23:18:45 | Script Bash gerado: D:\FIAP\WINDOWS\SmartFactory-GS\03-Scripts\Gerados-Etapa12\02-Auditar-Endurecer-Wazuh.sh
+2026-11-12 23:18:45 | RAM: VM-FW01 | Running | Start=1,50 GiB | Atual=1,50 GiB | Dinamica=False
+2026-11-12 23:18:46 | RAM: VM-DC01 | Running | Start=4,00 GiB | Atual=2,50 GiB | Dinamica=True
+2026-11-12 23:18:46 | RAM: VM-WAZUH01 | Off | Start=7,50 GiB | Atual=0,00 GiB | Dinamica=False
+2026-11-12 23:18:46 | HOST RAM livre agora: 6,22 GiB
+2026-11-12 23:18:46 | Preparacao concluida. Nenhuma VM/memoria/GPO/LAPS alterada.
+2026-11-12 23:19:07 | MSI 4.14.10: SHA512 oficial CONFERE; assinatura Authenticode=Valid
+2026-11-12 23:19:07 | Agente baixado: integridade SHA512 oficial confirmada.
+2026-11-12 23:21:01 | MSI 4.14.10: SHA512 oficial CONFERE; assinatura Authenticode=Valid
+2026-11-12 23:25:27 | MSI 4.14.10: SHA512 oficial CONFERE; assinatura Authenticode=Valid
+2026-11-12 23:26:11 | Agente VM-DC01 configurado. Registro local: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\14-Agent-VM-DC01.txt. Aguardando gerente Wazuh ativo para registro remoto.
+2026-11-12 23:45:07 | VM-DC01: VALIDADO LOCALMENTE: host=VM-DC01 | WazuhSvc=Running | manager=10.20.110.10 | canais=8
+2026-11-12 23:49:43 | MSI 4.14.10: SHA512 oficial CONFERE; assinatura Authenticode=Valid
+2026-11-12 23:50:20 | Agente VM-FILE01 configurado. Registro local: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\14-Agent-VM-FILE01.txt. Aguardando gerente Wazuh ativo para registro remoto.
+2026-11-12 23:50:35 | VM-FILE01: VALIDADO LOCALMENTE: host=VM-FILE01 | WazuhSvc=Running | manager=10.20.110.10 | canais=7
+2026-11-12 23:55:46 | MSI 4.14.10: SHA512 oficial CONFERE; assinatura Authenticode=Valid
+2026-11-12 23:58:06 | VM-WEB01: VALIDADO LOCALMENTE: host=VM-WEB01 | WazuhSvc=Running | manager=10.20.110.10 | canais=8
+2026-11-13 00:01:54 | MSI 4.14.10: SHA512 oficial CONFERE; assinatura Authenticode=Valid
+2026-11-13 00:03:11 | MSI 4.14.10: SHA512 oficial CONFERE; assinatura Authenticode=Valid
+2026-11-13 00:04:34 | Agente VM-BKP01 configurado. Registro local: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\14-Agent-VM-BKP01.txt. Aguardando gerente Wazuh ativo para registro remoto.
+2026-11-13 00:07:35 | VM-BKP01: VALIDADO LOCALMENTE: host=VM-BKP01 | WazuhSvc=Running | manager=10.20.110.10 | canais=7
+2026-11-13 00:09:27 | MSI 4.14.10: SHA512 oficial CONFERE; assinatura Authenticode=Valid
+2026-11-13 00:10:38 | Agente CLI-ADM01 configurado. Registro local: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\14-Agent-CLI-ADM01.txt. Aguardando gerente Wazuh ativo para registro remoto.
+2026-11-13 00:11:07 | CLI-ADM01: VALIDADO LOCALMENTE: host=CLI-ADM01 | WazuhSvc=Running | manager=10.20.110.10 | canais=7
+2026-11-13 00:13:58 | MSI 4.14.10: SHA512 oficial CONFERE; assinatura Authenticode=Valid
+2026-11-13 00:14:52 | Agente PAW-TI01 configurado. Registro local: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\14-Agent-PAW-TI01.txt. Aguardando gerente Wazuh ativo para registro remoto.
+2026-11-13 00:15:50 | PAW-TI01: VALIDADO LOCALMENTE: host=PAW-TI01 | WazuhSvc=Running | manager=10.20.110.10 | canais=7
+2026-11-13 00:19:55 | CLI-ADM01: Sysmon piloto: Sysmon; WazuhSvc reiniciado; canal Microsoft-Windows-Sysmon/Operational preparado.
+2026-11-13 00:26:22 | Script Bash gerado: D:\FIAP\WINDOWS\SmartFactory-GS\03-Scripts\Gerados-Etapa12\02-Auditar-Endurecer-Wazuh.sh
+2026-11-13 00:26:24 | Script Linux copiado em SFSETUP: F:\02-Auditar-Endurecer-Wazuh.sh
+2026-11-13 00:31:53 | Resultado Linux importado para 09-Logs-Testes/14-Linux-Wazuh-Resultado.txt.
+2026-11-13 00:32:24 | Agentes Windows com logs locais: 5 de 6.
+2026-11-13 00:32:24 | VM-DC01: LOG LOCAL PRESENTE
+2026-11-13 00:32:24 | VM-FILE01: LOG LOCAL PRESENTE
+2026-11-13 00:32:24 | VM-WEB01: PENDENTE
+2026-11-13 00:32:24 | VM-BKP01: LOG LOCAL PRESENTE
+2026-11-13 00:32:24 | CLI-ADM01: LOG LOCAL PRESENTE
+2026-11-13 00:32:24 | PAW-TI01: LOG LOCAL PRESENTE
+2026-11-13 00:32:24 | Auditoria Linux importada: True
+2026-11-13 00:32:24 | IMPORTANTE: T17-T27, RBAC, ingestao de eventos e bloqueios em rede serao testados na BATERIA FINAL.
+2026-11-13 00:32:24 | ETAPA12 PARCIAL: executar acoes restantes antes de declarar encerramento da configuracao.

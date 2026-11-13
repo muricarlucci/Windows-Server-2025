@@ -1,0 +1,21 @@
+﻿[2026-11-13 02:21:31] APROVADO | HV-VM-FW01 | VM existente: VM-FW01 State=Running
+[2026-11-13 02:21:32] VM-FW01: State=Running; MemAssigned=1,50GiB; Startup=1,50GiB; Dynamic=False; VLAN=0
+[2026-11-13 02:21:32] APROVADO | HV-VM-DC01 | VM existente: VM-DC01 State=Off
+[2026-11-13 02:21:32] VM-DC01: State=Off; MemAssigned=0,00GiB; Startup=4,00GiB; Dynamic=True; VLAN=20
+[2026-11-13 02:21:32] APROVADO | HV-VM-FILE01 | VM existente: VM-FILE01 State=Off
+[2026-11-13 02:21:32] VM-FILE01: State=Off; MemAssigned=0,00GiB; Startup=3,00GiB; Dynamic=False; VLAN=20
+[2026-11-13 02:21:32] APROVADO | HV-VM-WEB01 | VM existente: VM-WEB01 State=Off
+[2026-11-13 02:21:33] VM-WEB01: State=Off; MemAssigned=0,00GiB; Startup=3,00GiB; Dynamic=True; VLAN=100
+[2026-11-13 02:21:33] APROVADO | HV-VM-BKP01 | VM existente: VM-BKP01 State=Off
+[2026-11-13 02:21:33] VM-BKP01: State=Off; MemAssigned=0,00GiB; Startup=3,00GiB; Dynamic=True; VLAN=120
+[2026-11-13 02:21:33] APROVADO | HV-CLI-ADM01 | VM existente: CLI-ADM01 State=Off
+[2026-11-13 02:21:33] CLI-ADM01: State=Off; MemAssigned=0,00GiB; Startup=4,00GiB; Dynamic=True; VLAN=30
+[2026-11-13 02:21:33] APROVADO | HV-PAW-TI01 | VM existente: PAW-TI01 State=Off
+[2026-11-13 02:21:33] PAW-TI01: State=Off; MemAssigned=0,00GiB; Startup=4,00GiB; Dynamic=True; VLAN=90
+[2026-11-13 02:21:33] APROVADO | HV-VM-WAZUH01 | VM existente: VM-WAZUH01 State=Off
+[2026-11-13 02:21:34] VM-WAZUH01: State=Off; MemAssigned=0,00GiB; Startup=7,50GiB; Dynamic=False; VLAN=110
+[2026-11-13 02:21:34] HOST RAM Livre=8,17 GiB
+[2026-11-13 02:21:34] APROVADO | HV09 | FW01 estatico 1536MiB 
+[2026-11-13 02:21:34] APROVADO | HV10 | WAZUH01 estatico 7680MiB 
+[2026-11-13 02:21:34] APROVADO | HV11 | DC01 memoria dinamica 
+[2026-11-13 02:21:34] Verificacoes gravadas: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\15-Auditoria-Final\VERIFICACOES_TECNICAS.csv

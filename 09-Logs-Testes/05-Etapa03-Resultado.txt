@@ -1,0 +1,11 @@
+﻿2026-11-10 01:10:29 | Backup original preservado; iniciando geracao do XML.
+2026-11-10 01:10:29 | XML gerado: D:\FIAP\WINDOWS\SmartFactory-GS\04-Configuracoes\pfSense\config-SmartFactory-Etapa03-IMPORTAR.xml
+2026-11-10 01:10:29 | VLANs: 13, aliases: 20, regras: 47, DHCP relay: 8 VLANs.
+2026-11-10 01:10:29 | SHA256 XML: C7BBC2AE0259AB3B4C70BB8942DF0C8C69C6C35F6D7B5DC931AB70A7A240FD6F
+2026-11-10 01:10:29 | Roteiro: D:\FIAP\WINDOWS\SmartFactory-GS\07-Video\Roteiros\Roteiro_Video_Etapa_4.txt
+2026-11-10 01:10:29 | Proximo passo MANUAL: Restaurar XML no pfSense; somente DEPOIS executar -Acao MigrarTrunk.
+2026-11-10 01:23:06 | Hyper-V: trunk atualizado para VLAN nativa 99.
+2026-11-10 01:23:29 | VM: Running; Trunk: Trunk; Native: 99; Host access: 10; HTTPS: True
+2026-11-10 01:23:29 | VALIDACAO HYPER-V + HTTPS APROVADA. Regras/servicos do pfSense exigem conferencia no painel.
+2026-11-10 01:47:07 | VM: Running; Trunk: Trunk; Native: 99; Host access: 10; HTTPS: True
+2026-11-10 01:47:07 | VALIDACAO HYPER-V + HTTPS APROVADA. Regras/servicos do pfSense exigem conferencia no painel.

@@ -1,0 +1,17 @@
+﻿ROTEIRO — VÍDEO 08 | BKP01, BACKUP E RESTAURAÇÃO
+
+Nesta etapa, implementamos a infraestrutura de backup da SmartFactory, utilizando a VM-BKP01, isolada na VLAN 120. O objetivo não é apenas guardar arquivos, mas preparar um repositório controlado e demonstrar que uma informação pode ser recuperada sem alterar sua integridade.
+
+Antes de começar, organizamos as máquinas ligadas para evitar sobrecarregar os dezesseis gigabytes de RAM do computador. O script de preparação verificou o ambiente e criou automaticamente o relatório, o checklist, o log e o roteiro do vídeo.
+
+Depois, provisionamos a BKP01 no Hyper-V, com Windows Server 2025 Standard Desktop Experience, duas CPUs virtuais e memória dinâmica. A VM recebeu um disco de sessenta gigabytes para o sistema operacional e outro disco VHDX dinâmico de duzentos gigabytes para o repositório. Também configuramos sua placa em modo Access na VLAN 120, separando o backup das redes de usuários e servidores comuns.
+
+Após instalar o Windows, automatizamos o nome VM-BKP01, o IP 10.20.120.10, o gateway da VLAN e o DNS corporativo. O servidor ingressou no domínio smartfactory.corp e foi associado à OU de Backup Servers. Em seguida, a rotina principal identificou o disco de repositório, inicializou o volume B: e criou as pastas destinadas aos backups da FILE01, ao estado do sistema do DC01 e aos testes de restauração.
+
+Também configuramos o compartilhamento administrativo oculto SF_Repositorio$, com permissões restritas, criptografia SMB e assinatura obrigatória. O repositório não foi planejado para acesso livre dos funcionários.
+
+Para demonstrar um backup sem manter quatro máquinas virtuais ligadas ao mesmo tempo, o script preparou um arquivo de teste na FILE01. Depois do desligamento normal dessa VM e da BKP01, montou o disco de dados da FILE01 em modo somente leitura no hospedeiro e copiou os arquivos para o VHDX de backup com Robocopy. A operação registrou o nome da cópia, a quantidade de arquivos e o resultado da transferência.
+
+Na etapa de recuperação, a rotina copiou uma amostra do backup para uma pasta isolada e comparou os hashes SHA-256 do arquivo guardado e do arquivo restaurado. Quando os valores coincidem, temos evidência de que a cópia selecionada foi recuperada com integridade, sem sobrescrever os dados originais.
+
+O script também disponibiliza uma operação separada de Windows Server Backup para capturar o System State do DC01 e arquivá-lo no repositório. Essa ação exige espaço adicional e deve ser registrada como concluída somente se realmente tiver sido executada. Por fim, documentamos uma limitação: os discos virtuais ainda estão no mesmo computador, portanto essa implantação demonstra backup e recuperação, mas não uma estratégia 3-2-1 completa com cópia externa imutável.

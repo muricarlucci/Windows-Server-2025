@@ -1,0 +1,4 @@
+﻿[2026-11-13 02:21:48] APROVADO | RE01 | Trunk LAN NativeVlan 99 
+[2026-11-13 02:22:02] APROVADO | RE02 | pfSense HTTPS da VLAN MGMT 
+[2026-11-13 02:22:02] NAO_EXECUTADO | RE03 | Revisao da configuracao pfSense atual: Exporte XML atual do pfSense e informe -XmlPfSense CAMINHO, sem enviar XML bruto.
+[2026-11-13 02:22:02] Verificacoes gravadas: D:\FIAP\WINDOWS\SmartFactory-GS\09-Logs-Testes\15-Auditoria-Final\VERIFICACOES_TECNICAS.csv

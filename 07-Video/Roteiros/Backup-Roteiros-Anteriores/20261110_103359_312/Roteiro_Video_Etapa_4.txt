@@ -1,0 +1,11 @@
+﻿Nesta etapa, implementamos a segmentacao da rede SmartFactory no firewall pfSense e no Hyper-V.
+
+Partimos de um backup da configuracao original do firewall e utilizamos um script PowerShell para gerar o arquivo XML com as VLANs, gateways, aliases, regras de seguranca, NAT e DHCP Relay, evitando configurar dezenas de itens manualmente.
+
+Configuramos a VLAN 99 como nativa e sem uso, mantendo a VLAN 10 etiquetada para gerenciamento. As redes de departamentos, servidores, DMZ, SOC, backup e visitantes receberam gateways especificos.
+
+Organizamos as regras do firewall conforme o principio de menor privilegio, limitando acesso administrativo a PAW e ao host do laboratorio, protegendo a DMZ e isolando a rede de visitantes das redes privadas.
+
+O DHCP Relay foi preparado para o futuro controlador de dominio, onde sera instalado o DHCP do Windows Server. Os testes entre maquinas virtuais serao realizados quando os servidores e clientes estiverem instalados.
+
+Por fim, conferimos o trunk do Hyper-V, o acesso HTTPS ao firewall e registramos os resultados e backups para documentacao e recuperacao.

@@ -1,0 +1,66 @@
+=== SmartFactory Etapa 10: Wazuh, dados nao sigilosos ===
+2026-11-12T21:10:13-03:00
+vm-wazuh01
+lo               UNKNOWN        127.0.0.1/8 
+eth0             UP             10.20.110.10/24 
+               total        used        free      shared  buff/cache   available
+Mem:           7.3Gi       2.5Gi       1.4Gi       4.0Mi       3.6Gi       4.7Gi
+Swap:          4.0Gi       524Ki       4.0Gi
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda2        39G   22G   15G  61% /
+/dev/sdb1        79G  3.3M   75G   1% /var/lib/wazuh-indexer
+=== Wazuh versoes ===
+filebeat 7.10.2-2
+wazuh-dashboard 4.14.10-1
+wazuh-indexer 4.14.10-1
+wazuh-manager 4.14.10-1
+=== Servicos ===
+wazuh-manager: active
+wazuh-indexer: active
+wazuh-dashboard: active
+filebeat: active
+=== HTTPS local (somente status) ===
+HTTP 302
+=== UFW ===
+Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), disabled (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW IN    10.20.90.10                # SF PAW SSH
+443/tcp                    ALLOW IN    10.20.90.10                # SF PAW dashboard
+1514/tcp                   ALLOW IN    10.20.20.0/24             
+1515/tcp                   ALLOW IN    10.20.20.0/24             
+1514/tcp                   ALLOW IN    10.20.30.0/24             
+1515/tcp                   ALLOW IN    10.20.30.0/24             
+1514/tcp                   ALLOW IN    10.20.40.0/24             
+1515/tcp                   ALLOW IN    10.20.40.0/24             
+1514/tcp                   ALLOW IN    10.20.50.0/24             
+1515/tcp                   ALLOW IN    10.20.50.0/24             
+1514/tcp                   ALLOW IN    10.20.60.0/24             
+1515/tcp                   ALLOW IN    10.20.60.0/24             
+1514/tcp                   ALLOW IN    10.20.70.0/24             
+1515/tcp                   ALLOW IN    10.20.70.0/24             
+1514/tcp                   ALLOW IN    10.20.80.0/24             
+1515/tcp                   ALLOW IN    10.20.80.0/24             
+1514/tcp                   ALLOW IN    10.20.90.0/24             
+1515/tcp                   ALLOW IN    10.20.90.0/24             
+1514/tcp                   ALLOW IN    10.20.100.0/24            
+1515/tcp                   ALLOW IN    10.20.100.0/24            
+1514/tcp                   ALLOW IN    10.20.120.0/24            
+1515/tcp                   ALLOW IN    10.20.120.0/24            
+
+=== Escuta TCP ===
+LISTEN 0      511               0.0.0.0:443        0.0.0.0:*          
+LISTEN 0      4096              0.0.0.0:22         0.0.0.0:*          
+LISTEN 0      128               0.0.0.0:1515       0.0.0.0:*          
+LISTEN 0      128               0.0.0.0:1514       0.0.0.0:*          
+LISTEN 0      2048              0.0.0.0:55000      0.0.0.0:*          
+LISTEN 0      4096                 [::]:22            [::]:*          
+LISTEN 0      2048                 [::]:55000         [::]:*          
+LISTEN 0      4096   [::ffff:127.0.0.1]:9200             *:*          
+=== Linux hardening ===
+AppArmor: ativo
+vm.max_map_count = 262144

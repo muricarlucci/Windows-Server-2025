@@ -1,0 +1,15 @@
+﻿
+
+Host            : VM-FILE01
+Service         : Running
+Manager         : 10.20.110.10
+OssecXml        : Valido
+FimPaths        : E:\Dados\TI\SF-FIM-Piloto
+FirewallsAtivos : 3
+LocalLogs       : Configurados; coleta remota ainda nao testada
+PSComputerName  : VM-FILE01
+RunspaceId      : 8c1ac70c-4646-4584-aa14-31a2ac03883b
+
+
+
+

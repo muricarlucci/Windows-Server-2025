@@ -1,0 +1,15 @@
+﻿
+
+Host            : CLI-ADM01
+Service         : Running
+Manager         : 10.20.110.10
+OssecXml        : Valido
+FimPaths        : C:\SF-Telemetria\FIM-Piloto
+FirewallsAtivos : 3
+LocalLogs       : Configurados; coleta remota ainda nao testada
+PSComputerName  : CLI-ADM01
+RunspaceId      : e431d446-09fa-402c-9185-fc788180a75d
+
+
+
+
