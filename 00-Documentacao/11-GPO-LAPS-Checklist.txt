@@ -1,0 +1,10 @@
+﻿ETAPA 11 | GPOs, Windows LAPS e Hardening
+[ ] Preparar: RAM, FW01/DC01, WAZUH OFF; arquivos gerados.
+[ ] EstruturarGPOs: backup GPO, Central Store, dez GPOs criadas e valores revisados.
+[ ] PrepararLAPS: backup AD confirmado, schema atualizado se necessario, grupos/ACL.
+[ ] AplicarPiloto: CLI-ADM01 movida para Piloto_GPO e tres GPOs linkadas.
+[ ] ProcessarPiloto: gpupdate + Invoke-LapsPolicyProcessing, sem erros.
+[ ] ValidarPiloto: evento 10018, atributo criptografado, GPOs e grupos conferidos.
+[ ] Publicar (APOS HOMOLOGACAO): links endpoint e servidor, OU original restaurada.
+[ ] DSRM (OPCIONAL e controlado): backup de DC validado, link DC habilitado.
+[ ] Evidencias e video 12.

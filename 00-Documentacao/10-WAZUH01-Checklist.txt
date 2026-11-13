@@ -1,0 +1,16 @@
+﻿[ ] FW01 Running; DC01, FILE01, WEB01, BKP01, CLI-ADM01, PAW-TI01 Off
+[ ] Backup de configuracao pfSense preservado antes de habilitar resolver na VLAN110
+[ ] pfSense DNS Resolver responde na VLAN SECURITY_SOC com regra TCP/UDP53 somente origem 10.20.110.10
+[ ] D: com margem fisica; host suficiente para VM estatica 8 GiB
+[ ] VM-WAZUH01 Gen2 4 vCPU 8 GiB fixos, Secure Boot Linux CA, Access VLAN110
+[ ] VHDX OS 40 GiB, indexer 80 GiB, transporte FAT32 256 MiB
+[ ] Ubuntu 24.04 Server: APENAS OS 40GiB formatado; IP estatico 10.20.110.10/24, gateway .1 DNS .1
+[ ] Ubuntu sem AD Join; hostname vm-wazuh01
+[ ] Script Linux executado pelo FAT32 em sudo, sem SSH aberto para host
+[ ] Indexer volume ext4 WAZUHIDX em /var/lib/wazuh-indexer
+[ ] Wazuh 4.14 all-in-one instalado, servicos ativos; HTTPS local
+[ ] Segredos de admin nao filmados, guardados com acesso restrito
+[ ] UFW ativo, 1514/1515 corporativos; 22/443 apenas PAW; 55000/9200 externos nao permitidos
+[ ] Resultado nao sigiloso no FAT32; coletado no Windows com VM desligada
+[ ] Relatorio, log, evidencias, video 11 e roteiro ampliado salvos
+[ ] Agentes Windows, Sysmon, FIM, SCA, Vulnerability Detection de endpoints: etapas de telemetria/testes

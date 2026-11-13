@@ -1,0 +1,13 @@
+﻿[ ] FW01 e DC01 Running; FILE01, WEB01, BKP01 Off
+[ ] Preparar conferiu RAM do host e DC01
+[ ] CriarVM: Windows 11 Pro, Gen2, Secure Boot e vTPM
+[ ] 2 vCPU, 80 GB dinamico, RAM dinamica minimo/inicial 4 GB
+[ ] Adaptador CLIENTES em Access VLAN 30
+[ ] Instalacao limpa Windows 11 Pro finalizada com conta local
+[ ] ConfigurarBase: DHCP entrega 10.20.30.21-254; gateway e DNS corretos
+[ ] CriarUsuarioTeste: lab.adm01 nao administrativo no AD
+[ ] IngressarDominio: smartfactory.corp; OU Computadores/Administracao
+[ ] Validar: canal seguro do dominio, DHCP, DNS e AD
+[ ] Login interativo com SMARTFACTORY\lab.adm01 (evidencia manual)
+[ ] Evidencias e video 09 salvos; nenhuma senha mostrada
+[ ] Testes finais SMB/DFS/IIS/ACL e Kerberos real reservados para a fase geral

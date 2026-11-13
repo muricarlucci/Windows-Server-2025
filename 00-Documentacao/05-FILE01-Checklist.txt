@@ -1,0 +1,12 @@
+﻿[ ] Preparar: FW01 e DC01 rodando, espaco livre e ISO conferidos
+[ ] VM-FILE01: Gen2, 2 vCPU, 3GB RAM, VLAN 20, 3 VHDX dinamicos
+[ ] Instalar Windows Server 2025 Standard Server Core (manual)
+[ ] ConfigurarBase: VM-FILE01 e IP 10.20.20.15/24, DNS 10.20.20.11
+[ ] IngressarDominio: smartfactory.corp e OU File_Servers
+[ ] ConfigurarArquivos: volumes E e S, roles, SMB e NTFS
+[ ] ConfigurarArquivos: Dados$, DFS Namespace e 7 links
+[ ] ConfigurarArquivos: 7 quotas FSRM, triagem ativa
+[ ] ConfigurarArquivos: dedup, VSS S: com agendamento 07/12 em dias uteis
+[ ] Validar: comandos aprovados e evidencias guardadas
+[ ] Video 06 gravado; roteiro em 07-Video\Roteiros
+[ ] Registrar limitacoes: sem FILE02, DFSR e alta disponibilidade

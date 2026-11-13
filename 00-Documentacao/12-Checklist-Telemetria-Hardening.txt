@@ -1,0 +1,16 @@
+﻿[ ] FW01 1.5 GiB estaticos; DC01 dinamica; WAZUH01 7.5 GiB estaticos preservados
+[ ] WAZUH01 Off durante deploy dos agentes Windows
+[ ] MSI oficial Wazuh 4.14.10 baixado e assinatura verificavel
+[ ] Agente Wazuh instalado e configurado em VM-DC01
+[ ] Agente Wazuh instalado e configurado em VM-FILE01
+[ ] Agente Wazuh instalado e configurado em VM-WEB01
+[ ] Agente Wazuh instalado e configurado em VM-BKP01
+[ ] Agente Wazuh instalado e configurado em CLI-ADM01
+[ ] Agente Wazuh instalado e configurado em PAW-TI01
+[ ] FIM seletivo na pasta REAL da Intranet: C:\inetpub\SmartFactory-Intranet
+[ ] Coleta Windows Security/System/Application, PowerShell e Defender
+[ ] Sysmon Windows 11 PILOTO instalado se compatibilidade confirmada
+[ ] Gestao de mudancas GMUD e 4 playbooks IR criados
+[ ] Wazuh: auditoria de servicos, SCA, vulnerabilidades e Ubuntu SSH
+[ ] Evidencia Linux coletada sem credenciais; arquivos sigilosos nao exportados
+[ ] Testes T17-T27 e RBAC pendentes para a bateria final (nao simular aprovacao)

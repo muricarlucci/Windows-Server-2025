@@ -1,0 +1,16 @@
+﻿[ ] VM-FILE01 desligada com encerramento normal; FW01 e DC01 ligadas
+[ ] DC01 permanece em RAM dinamica (sem modificacao nesta etapa)
+[ ] ISO Windows Server 2025 funcional selecionada
+[ ] VM-WEB01 Gen2, RAM dinamica 2/3/4 GB, 2 vCPU, VLAN 100, VHDX 80GB
+[ ] Windows Server 2025 Standard Desktop Experience instalado
+[ ] ConfigurarBase: IP 10.20.100.10/24, GW 10.20.100.1, DNS 10.20.20.11
+[ ] IngressarDominio: smartfactory.corp; OU Web_Servers
+[ ] IIS: site HTTP redirect 301, site HTTPS 443, app pool dedicado
+[ ] Certificado RSA 2048 no binding HTTPS
+[ ] Windows Auth ON e Anonymous OFF no site HTTPS
+[ ] DNS: CNAME intranet.smartfactory.corp e SPN HTTP na VM-WEB01
+[ ] Windows Firewall TCP 80/443 restrito as redes 30-90; RDP NLA somente da PAW
+[ ] Testes locais de 301 e 401, se suportados pelo ambiente
+[ ] Validacao script aprovada; prints e video 07 gravados
+[ ] Registrar: certificado autoassinado; TLS1.3 nao imposto de forma exclusiva
+[ ] Registrar: SSO/Kerberos por cliente e isolamento de rede aguardam as VMs de testes

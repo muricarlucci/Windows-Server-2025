@@ -1,0 +1,16 @@
+﻿[ ] FW01 e DC01 ligadas; FILE01 e WEB01 desligadas antes de instalar BKP01
+[ ] Preparar aprovado e ISO validada
+[ ] BKP01 Gen2, Desktop Experience, VLAN120, RAM dinamica 2/3/4 GB
+[ ] Disco C: 60 GB, disco B: 200 GB, VHDX dinamicos e GPT/NTFS
+[ ] BKP01 10.20.120.10/24, gateway .1, DNS DC01
+[ ] Ingresso no dominio e OU Backup_Servers
+[ ] Repositorio e compartilhamento administrativo com SMB encryption
+[ ] PrepararTesteFILE01 criou TXT de teste com FILE01 ligada e BKP01 desligada
+[ ] FILE01 desligada antes de montar seu VHDX em modo somente leitura
+[ ] BackupFILE01Offline executado e snapshot identificado
+[ ] TestarRestauracao: hash SHA256 igual ao arquivo copiado
+[ ] System State DC01 pelo wbadmin, em disco staging separado (opcional pesado)
+[ ] DC01 e BKP01 desligadas durante ArquivarEstadoDC
+[ ] T29: procedimento de recuperacao AD documentado; teste destrutivo nao executado
+[ ] Copia offline externa/imutavel REAL: pendente de midia ou servico independente
+[ ] Evidencias, relatorio e video 08 registrados

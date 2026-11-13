@@ -1,0 +1,16 @@
+﻿[ ] Preflight aprovado e ISO Server 2025 confirmada.
+[ ] VM-DC01 Gen2/2vCPU/4GB estaticos/VHDX 60GB.
+[ ] Secure Boot ligado; NIC Access VLAN20; DHCPGuard Off.
+[ ] Instalacao Windows Server 2025 Standard CORE.
+[ ] Senha admin local definida; boot concluido.
+[ ] Nome VM-DC01; 10.20.20.11/24, GW 10.20.20.1, DNS 10.20.20.11.
+[ ] Floresta smartfactory.corp, NetBIOS SMARTFACTORY, nivel 2025.
+[ ] GC/FSMO e registros SRV verificados.
+[ ] Zona DNS direta e reversa /16 e forwarders.
+[ ] OUs: SmartFactory, Infraestrutura, Piloto_GPO e DCs na OU nativa.
+[ ] 7 grupos GG e 14 grupos DL criados e vinculados (sem ACL NTFS ainda).
+[ ] DHCP autorizado no AD; 8 escopos; exclusoes/lease/opcoes.
+[ ] Backup inicial do DC planejado na futura etapa de recuperacao.
+[ ] Teste de DHCP Relay real pendente de CLI-ADM01.
+[ ] Registro do Windows Server/licenca de laboratorio documentado.
+[ ] Evidencias e video 05 salvos.

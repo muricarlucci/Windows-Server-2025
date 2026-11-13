@@ -1,0 +1,13 @@
+﻿[ ] FW01, DC01 Running; CLI-ADM01, FILE01, WEB01, BKP01 Off
+[ ] Preparar: ram e espaco livre verificados
+[ ] CriarVM: Gen2, Secure Boot, vTPM, 2 vCPU, 80GB, RAM dinamica 4/4/6GB
+[ ] Instalar Windows 11 Pro (NAO Home); conta local administrativa criada
+[ ] ConfigurarBase: PAW-TI01, 10.20.90.10/24, GW .1, DNS DC01 .11
+[ ] CriarContaAdmin: adm.lab em OU TI, GG_PAW_Administradores, nao Domain Admin
+[ ] IngressarDominio: smartfactory.corp, OU=Computadores/ TI
+[ ] ConfigurarPAW: grupo local Administrators, firewall, entrada RDP desabilitada
+[ ] Logon interativo SMARTFACTORY\adm.lab na PAW, sem senha em screenshots
+[ ] InstalarRSAT (opcional): AD / DNS / GPO se houver conectividade a Windows Update
+[ ] Validar: IP, OU, conta, canal seguro, vTPM e restricoes
+[ ] Testes de RDP/WinRM/SSH e negacoes a partir de clientes: fase final
+[ ] Capturas salvas; video 10 e roteiro criado automaticamente
